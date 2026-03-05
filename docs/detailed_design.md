@@ -102,7 +102,7 @@
 | クラス | 背景色 | 用途 |
 |--------|--------|------|
 | `toast-success` | `var(--success)`（`#10b981`） | 操作成功 |
-| `toast-error` | `var(--danger)`（`#ef4444`） | エラー |
+| `toast-error` | `var(--danger)`（`#dc2626`） | エラー |
 | `toast-info` | `#3b82f6`（ブルー） | 情報通知 |
 
 関数シグネチャ: `showToast(message, type = 'info', duration = 3000)`
@@ -343,7 +343,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 |------|--------|--------|
 | 在庫 > 最低在庫数 | stock-normal | 通常色 |
 | 0 < 在庫 <= 最低在庫数 | stock-low | 警告色（`var(--warning)` / `#f59e0b`） |
-| 在庫 <= 0 | stock-zero | 危険色（`var(--danger)` / `#ef4444`） |
+| 在庫 <= 0 | stock-zero | 危険色（`var(--danger)` / `#dc2626`） |
 
 **ボタン:**
 - 「編集」: `primary-btn` → 商品フォームオーバーレイを開く
@@ -495,7 +495,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | 確定 | `"confirm"` | `confirmNumpad()` 実行 |
 
 - 各ボタンサイズ: `min-height: 60px`（モバイル: 52px）
-- 「C」ボタン: 赤色テキスト（`var(--danger)` / `#ef4444`）
+- 「C」ボタン: 赤色テキスト（`var(--danger)` / `#dc2626`）
 - 「←」ボタン: グレーテキスト（`var(--text-light)` / `#6b7280`）
 - 「確定」ボタン: プライマリグリーン背景（`var(--primary)` / `#10b981`）
 
@@ -767,14 +767,16 @@ script.js 内のUI操作時に行われる追加バリデーション:
 
 ### 12.2 ボタンバリエーション
 
-| クラス | 背景色 | hover時背景色 | テキスト色 | 用途 |
-|--------|--------|-------------|-----------|------|
-| `primary-btn` | `var(--primary)`（`#10b981`） | `var(--primary-dark)`（`#059669`） | `#ffffff` | 主要アクション（保存、登録、完了） |
-| `secondary-btn` | `var(--secondary)`（`#64748b`） | `#475569` | `#ffffff` | 副次アクション（キャンセル、閉じる） |
-| `danger-btn` | `var(--danger)`（`#ef4444`） | `#dc2626` | `#ffffff` | 破壊的操作（削除、全データ削除、中止） |
-| `text-btn` | `transparent` | - | `var(--primary)` | テキストボタン（軽量アクション） |
-| `cancel-btn` | `transparent` | - | `var(--text-light)` | キャンセルボタン |
-| `scan-btn` | `var(--primary-bg)` | - | `var(--primary)` | スキャンボタン |
+| クラス | 背景色 | hover時背景色 | テキスト色 | ボーダー色 | 用途 |
+|--------|--------|-------------|-----------|-----------|------|
+| `primary-btn` | `var(--primary)`（`#10b981`） | `var(--primary-dark)`（`#059669`） | `#ffffff` | `var(--primary)` | コミットアクション（保存、登録、完了、OK） |
+| `secondary-btn` | `var(--white)` | `#f3f4f6` | `var(--text)`（`#111827`） | `var(--border-strong)`（`#d1d5db`） | 副次アクション（エクスポート、サンプル読込、更新確認） |
+| `danger-btn` | `var(--danger)`（`#dc2626`） | `#b91c1c` | `#ffffff` | `var(--danger)` | 破壊的操作（削除、全データ削除） |
+| `text-btn` | `transparent` | `var(--primary-bg)` | `#059669` | なし | テキストボタン（軽量アクション） |
+| `btn-outline` | `transparent` | `var(--primary-bg)` | `#059669` | `#059669` | 遷移アクション（編集） |
+| `cancel-btn` | （secondary-btnを継承） | （secondary-btnを継承） | （secondary-btnを継承） | （secondary-btnを継承） | キャンセル |
+| `scan-btn` | `#f8fafc` | `var(--secondary)` | `var(--secondary)`（`#64748b`） | `#cbd5e1` | ツール操作（バーコードスキャン） |
+| `btn-icon` | `transparent` | `var(--bg)` | `var(--text-light)` | `var(--border-strong)`（`#d1d5db`） | アイコンボタン |
 
 ### 12.3 disabled状態
 
@@ -795,7 +797,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | `--primary-light` | `#6ee7b7` | アクセントカラー |
 | `--primary-bg` | `#f0fdf4` | プライマリ背景 |
 | `--secondary` | `#64748b` | セカンダリカラー（スレートグレー） |
-| `--danger` | `#ef4444` | 危険・エラー |
+| `--danger` | `#dc2626` | 危険・エラー（WCAG AA準拠） |
 | `--danger-bg` | `#fef2f2` | 危険背景 |
 | `--warning` | `#f59e0b` | 警告 |
 | `--warning-bg` | `#fffbeb` | 警告背景 |
@@ -805,6 +807,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | `--text-light` | `#6b7280` | 薄いテキスト色 |
 | `--text-secondary` | `#9ca3af` | 第三階層テキスト色 |
 | `--border` | `#f0f0f0` | ボーダー色（より薄い） |
+| `--border-strong` | `#d1d5db` | ボーダー色（ボタン・アイコン用、視認性強化） |
 | `--bg` | `#f8f9fa` | ページ背景色 |
 | `--white` | `#ffffff` | 白 |
 | `--shadow` | `0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.04)` | 標準影（軽い） |

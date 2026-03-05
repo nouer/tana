@@ -2,6 +2,57 @@
 
 治療院・サロン向けの在庫管理アプリ（施術用消耗品・物販商品）
 
+## プロジェクト構造
+
+```
+tana/
+├── local_app/                 # アプリ本体（PWA）
+│   ├── index.html             # メインHTML（SPA）
+│   ├── script.js              # UI操作・DB操作（IndexedDB）
+│   ├── tana.calc.js           # 純粋関数（計算・バリデーション）
+│   ├── style.css              # スタイルシート
+│   ├── sw.js                  # Service Worker（オフライン対応）
+│   ├── version.js             # バージョン情報（ビルド時自動生成）
+│   ├── manifest.json          # PWAマニフェスト
+│   ├── sample_data.json       # サンプルデータ
+│   ├── manual.html            # ユーザーマニュアル（ビルド時生成）
+│   ├── notify.html            # 通知ページ
+│   ├── promotion.html         # プロモーションページ
+│   ├── tana.calc.test.js      # ユニットテスト（Jest）
+│   ├── e2e.test.js            # E2Eテスト（Puppeteer）
+│   ├── icons/                 # PWAアイコン（SVG→PNG生成）
+│   └── lib/
+│       └── html5-qrcode.min.js  # バーコードスキャナー（唯一の外部ライブラリ）
+├── docs/                      # ドキュメント
+│   ├── requirements_definition.md  # 要件定義書
+│   ├── basic_design.md        # 基本設計書
+│   ├── detailed_design.md     # 詳細設計書
+│   ├── algorithm_logic.md     # アルゴリズム・計算ロジック
+│   ├── test_specification.md  # テスト仕様書
+│   ├── manual.md              # ユーザーマニュアル（Markdown原本）
+│   └── promotion.md           # プロモーション用テキスト
+├── scripts/                   # ビルド・ユーティリティスクリプト
+│   ├── build.sh               # Docker ビルド＆起動
+│   ├── rebuild.sh             # 強制リビルド
+│   ├── build-docs.sh          # Markdown→HTML変換（manual, promotion）
+│   ├── generate-icons.sh      # SVG→PNGアイコン生成
+│   ├── generate_version.sh    # version.js 生成
+│   └── md-to-html.py          # Markdown→HTMLコンバーター
+├── tools/                     # 開発補助ツール
+│   ├── generate_sample_data.js  # サンプルデータ生成
+│   └── take_screenshots.js    # スクリーンショット取得
+├── tasks/                     # タスク管理
+│   ├── todo.md                # 進行中タスク
+│   └── lessons.md             # 学んだ教訓
+├── nginx/
+│   └── default.conf           # Nginx設定
+├── Dockerfile                 # アプリ用Dockerfile（Nginx）
+├── Dockerfile.test            # テスト用Dockerfile（Puppeteer）
+├── docker-compose.yml         # Docker Compose定義
+├── package.json               # npm設定（Jest）
+└── README.md                  # プロジェクト概要
+```
+
 ## 開発コマンド
 
 ```bash
