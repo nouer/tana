@@ -81,6 +81,13 @@ docker compose run --rm tana-test
 - コミットメッセージは常に日本語で記述してください。
 - 英語プレフィックス (`docs:`, `chore:` 等) は使わないでください。
 
+## コミット対象ファイル
+
+- `local_app/sw.js` と `local_app/version.js` は必ずコミットに含めること
+  - これらはビルド時に自動生成されるが、PWAのアップデート検出に必要
+  - `sw.js` の `CACHE_NAME` が変わることでブラウザが新バージョンを検知する
+  - `version.js` の `buildTime` がアプリ内のバージョン表示に使われる
+
 ## ワークフロー設計
 
 ### Plan モード
