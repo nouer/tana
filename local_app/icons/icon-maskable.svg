@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Maskable icon for Tana inventory management app -->
+  <!-- Safe zone: inner 80% (51.2px margin on each side) -->
+  <!-- Background fills entire canvas -->
+
+  <!-- Full background -->
+  <rect width="512" height="512" fill="#059669"/>
+
+  <!-- Shelf frame (within safe zone) -->
+  <!-- Left vertical -->
+  <rect x="120" y="110" width="22" height="300" rx="4" fill="#ffffff" opacity="0.95"/>
+  <!-- Right vertical -->
+  <rect x="370" y="110" width="22" height="300" rx="4" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Top shelf -->
+  <rect x="112" y="160" width="288" height="11" rx="3" fill="#ffffff" opacity="0.95"/>
+  <!-- Middle shelf -->
+  <rect x="112" y="255" width="288" height="11" rx="3" fill="#ffffff" opacity="0.95"/>
+  <!-- Bottom shelf -->
+  <rect x="112" y="350" width="288" height="11" rx="3" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Top shelf items -->
+  <rect x="160" y="122" width="45" height="38" rx="4" fill="#34d399" opacity="0.9"/>
+  <rect x="218" y="130" width="40" height="30" rx="4" fill="#6ee7b7" opacity="0.85"/>
+  <rect x="272" y="118" width="48" height="42" rx="4" fill="#a7f3d0" opacity="0.8"/>
+  <rect x="334" y="126" width="36" height="34" rx="4" fill="#34d399" opacity="0.9"/>
+
+  <!-- Middle shelf items -->
+  <rect x="155" y="210" width="28" height="45" rx="6" fill="#6ee7b7" opacity="0.9"/>
+  <rect x="198" y="220" width="32" height="35" rx="4" fill="#a7f3d0" opacity="0.85"/>
+  <rect x="248" y="212" width="26" height="43" rx="6" fill="#34d399" opacity="0.9"/>
+  <rect x="290" y="216" width="36" height="39" rx="4" fill="#6ee7b7" opacity="0.85"/>
+  <rect x="342" y="208" width="30" height="47" rx="6" fill="#a7f3d0" opacity="0.8"/>
+
+  <!-- Bottom shelf items -->
+  <rect x="155" y="298" width="52" height="52" rx="6" fill="#34d399" opacity="0.9"/>
+  <rect x="220" y="306" width="44" height="44" rx="4" fill="#a7f3d0" opacity="0.85"/>
+  <rect x="278" y="300" width="48" height="50" rx="5" fill="#6ee7b7" opacity="0.9"/>
+  <rect x="340" y="310" width="36" height="40" rx="4" fill="#34d399" opacity="0.85"/>
+</svg>

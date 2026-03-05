@@ -1,0 +1,48 @@
+services:
+  tana-app:
+    # テスト/E2E 用: ホストへポート公開しない（ポート競合を根絶する）
+    build: .
+    image: "${COMPOSE_PROJECT_NAME:-tana}_app_image"
+    networks:
+      tana_net:
+        ipv4_address: "${TANA_APP_IP:-172.33.0.10}"
+    volumes:
+      - ./local_app:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+  tana-app-public:
+    # ブラウザアクセス用: ホストへポート公開する（必要なら TANA_PORT で変更）
+    image: "${COMPOSE_PROJECT_NAME:-tana}_app_image"
+    build: .
+    ports:
+      - "${TANA_PORT:-8088}:80"
+    networks:
+      - tana_net
+    volumes:
+      - ./local_app:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+  tana-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - TANA_PORT=${TANA_PORT:-8088}
+      - E2E_APP_IP=${TANA_APP_IP:-172.33.0.10}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - tana_net
+    volumes:
+      - ./local_app:/app/local_app
+      - ./tools:/app/tools
+      - ./docs:/app/docs
+    depends_on:
+      - tana-app
+
+networks:
+  tana_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "${TANA_SUBNET:-172.33.0.0/24}"

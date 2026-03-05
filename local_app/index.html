@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Tana - 在庫管理</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <!-- Scroll to top button -->
+  <button id="scroll-top-btn" class="scroll-top-btn" type="button" aria-label="ページ上部へ戻る" hidden>&uarr;</button>
+
+  <!-- App info display -->
+  <div id="app-info" class="app-info"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <h1>Tana - 在庫管理</h1>
+    <p class="subtitle">治療院・サロン向け在庫管理</p>
+  </header>
+
+  <!-- PWA update banner -->
+  <div id="update-banner" class="update-banner" hidden>
+    <p>新しいバージョンが利用可能です。</p>
+    <button type="button" id="update-btn">更新する</button>
+  </div>
+
+  <!-- Main tab navigation -->
+  <nav id="main-tab-nav" class="main-tab-nav" aria-label="メインナビゲーション">
+    <button type="button" class="tab-btn active" data-tab="dashboard"><span class="tab-icon">&#x25A6;</span>ダッシュボード</button>
+    <button type="button" class="tab-btn" data-tab="products"><span class="tab-icon">&#x25CB;</span>商品</button>
+    <button type="button" class="tab-btn" data-tab="transactions"><span class="tab-icon">&#x21C5;</span>入出庫</button>
+    <button type="button" class="tab-btn" data-tab="inventory"><span class="tab-icon">&#x2713;</span>棚卸</button>
+    <button type="button" class="tab-btn" data-tab="reports"><span class="tab-icon">&#x2261;</span>レポート</button>
+    <button type="button" class="tab-btn" data-tab="settings"><span class="tab-icon">&#x2699;</span>設定</button>
+  </nav>
+
+  <!-- ==================== Tab Contents ==================== -->
+  <main>
+
+    <!-- ===== Dashboard Tab ===== -->
+    <section id="tab-dashboard" class="tab-content active" aria-labelledby="tab-dashboard-label">
+      <h2 id="tab-dashboard-label" class="sr-only">ダッシュボード</h2>
+
+      <section id="low-stock-alerts" class="card">
+        <h3>在庫不足アラート <span id="dashboard-low-stock-count" class="badge"></span></h3>
+        <div id="dashboard-low-stock" class="alert-list">
+          <p class="empty-state">在庫不足の商品はありません</p>
+        </div>
+      </section>
+
+      <section id="expiry-alerts" class="card">
+        <h3>使用期限アラート <span id="dashboard-expiry-count" class="badge"></span></h3>
+        <div id="dashboard-expiry" class="alert-list">
+          <p class="empty-state">期限が近い商品はありません</p>
+        </div>
+      </section>
+
+      <section id="recent-transactions-summary" class="card">
+        <h3>最近の入出庫</h3>
+        <div id="dashboard-recent" class="transaction-summary-list">
+          <p class="empty-state">最近の入出庫はありません</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>概要</h3>
+        <div class="summary-cards">
+          <div class="summary-item"><span>登録商品数</span><span id="dashboard-total-products">0</span></div>
+          <div class="summary-item"><span>総在庫数</span><span id="dashboard-total-stock">0</span></div>
+        </div>
+      </section>
+
+      <section id="backup-reminder" class="card">
+        <h3>バックアップ</h3>
+        <div id="dashboard-backup-reminder">
+          <p class="empty-state">バックアップの状態を確認中...</p>
+        </div>
+      </section>
+
+      <div class="quick-actions">
+        <button type="button" class="quick-action-btn" id="quick-scan-receive">スキャンして入庫</button>
+        <button type="button" class="quick-action-btn" id="quick-scan-use">スキャンして使用</button>
+        <button type="button" class="quick-action-btn" id="quick-start-count">棚卸を開始</button>
+      </div>
+    </section>
+
+    <!-- ===== Products Tab ===== -->
+    <section id="tab-products" class="tab-content" hidden aria-labelledby="tab-products-label">
+      <h2 id="tab-products-label" class="sr-only">商品</h2>
+
+      <div class="toolbar">
+        <input type="search" id="product-search" class="search-input" placeholder="商品名で検索..." aria-label="商品検索">
+        <select id="product-category-filter" aria-label="カテゴリフィルター">
+          <option value="">すべて</option>
+          <option value="consumable">消耗品</option>
+          <option value="retail">物販</option>
+        </select>
+        <button type="button" id="add-product-btn" class="primary-btn">商品追加</button>
+      </div>
+
+      <div id="product-count" class="product-count"></div>
+      <div id="product-list" class="product-list">
+        <p class="empty-state">商品が登録されていません</p>
+      </div>
+
+      <button type="button" id="product-scan-fab" class="scan-fab" aria-label="バーコードスキャン">スキャン</button>
+    </section>
+
+    <!-- ===== Transactions Tab ===== -->
+    <section id="tab-transactions" class="tab-content" hidden aria-labelledby="tab-transactions-label">
+      <h2 id="tab-transactions-label" class="sr-only">入出庫</h2>
+
+      <!-- Sub-tab navigation -->
+      <nav id="transaction-sub-tabs" class="sub-tab-nav" aria-label="入出庫サブナビゲーション">
+        <button type="button" class="sub-tab-btn active" data-subtab="receive">入庫</button>
+        <button type="button" class="sub-tab-btn" data-subtab="use">使用</button>
+        <button type="button" class="sub-tab-btn" data-subtab="sell">販売</button>
+        <button type="button" class="sub-tab-btn" data-subtab="history">履歴</button>
+      </nav>
+
+      <!-- Receive sub-tab -->
+      <div id="subtab-receive" class="subtab-content active">
+        <form class="transaction-form" aria-label="入庫フォーム">
+          <button type="button" class="scan-btn" id="receive-scan-btn">バーコードスキャン</button>
+
+          <div class="form-group">
+            <label for="receive-product">商品</label>
+            <select id="receive-product" required>
+              <option value="">商品を選択...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="receive-quantity">数量</label>
+            <input type="number" id="receive-quantity" min="1" step="1" required>
+          </div>
+
+          <div class="form-group">
+            <label for="receive-date">入庫日</label>
+            <input type="date" id="receive-date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="receive-unit-cost">仕入単価</label>
+            <input type="number" id="receive-unit-cost" min="0" step="1">
+          </div>
+
+          <div class="form-group" id="receive-lot-number-group" hidden>
+            <label for="receive-lot-number">ロット番号</label>
+            <input type="text" id="receive-lot-number">
+          </div>
+
+          <div class="form-group" id="receive-expiry-date-group" hidden>
+            <label for="receive-expiry-date">使用期限</label>
+            <input type="date" id="receive-expiry-date">
+          </div>
+
+          <div class="form-group">
+            <label for="receive-notes">備考</label>
+            <textarea id="receive-notes" rows="2"></textarea>
+          </div>
+
+          <button type="button" id="save-receive-btn" class="primary-btn">入庫を保存</button>
+        </form>
+      </div>
+
+      <!-- Use sub-tab -->
+      <div id="subtab-use" class="subtab-content" hidden>
+        <form class="transaction-form" aria-label="使用フォーム">
+          <button type="button" class="scan-btn" id="use-scan-btn">バーコードスキャン</button>
+
+          <div class="form-group">
+            <label for="use-product">商品</label>
+            <select id="use-product" required>
+              <option value="">商品を選択...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="use-quantity">数量</label>
+            <input type="number" id="use-quantity" min="1" step="1" required>
+          </div>
+
+          <div class="form-group">
+            <label for="use-date">使用日</label>
+            <input type="date" id="use-date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="use-notes">備考</label>
+            <textarea id="use-notes" rows="2"></textarea>
+          </div>
+
+          <button type="button" id="save-use-btn" class="primary-btn">使用を保存</button>
+        </form>
+      </div>
+
+      <!-- Sell sub-tab -->
+      <div id="subtab-sell" class="subtab-content" hidden>
+        <form class="transaction-form" aria-label="販売フォーム">
+          <button type="button" class="scan-btn" id="sell-scan-btn">バーコードスキャン</button>
+
+          <div class="form-group">
+            <label for="sell-product">商品</label>
+            <select id="sell-product" required>
+              <option value="">商品を選択...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="sell-quantity">数量</label>
+            <input type="number" id="sell-quantity" min="1" step="1" required>
+          </div>
+
+          <div class="form-group">
+            <label for="sell-date">販売日</label>
+            <input type="date" id="sell-date" required>
+          </div>
+
+          <div class="form-group">
+            <label for="sell-notes">備考</label>
+            <textarea id="sell-notes" rows="2"></textarea>
+          </div>
+
+          <button type="button" id="save-sell-btn" class="primary-btn">販売を保存</button>
+        </form>
+      </div>
+
+      <!-- History sub-tab -->
+      <div id="subtab-history" class="subtab-content" hidden>
+        <div class="filter-bar">
+          <div class="form-group">
+            <label for="history-date-from">開始日</label>
+            <input type="date" id="history-date-from">
+          </div>
+          <div class="form-group">
+            <label for="history-date-to">終了日</label>
+            <input type="date" id="history-date-to">
+          </div>
+          <div class="form-group">
+            <label for="history-product-filter">商品</label>
+            <select id="history-product-filter">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="history-type-filter">種別</label>
+            <select id="history-type-filter">
+              <option value="">すべて</option>
+              <option value="receive">入庫</option>
+              <option value="use">使用</option>
+              <option value="sell">販売</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="transaction-list" class="transaction-list">
+          <p class="empty-state">履歴はありません</p>
+        </div>
+      </div>
+
+      <button type="button" id="transaction-scan-fab" class="scan-fab" aria-label="バーコードスキャン">スキャン</button>
+    </section>
+
+    <!-- ===== Inventory Tab ===== -->
+    <section id="tab-inventory" class="tab-content" hidden aria-labelledby="tab-inventory-label">
+      <h2 id="tab-inventory-label" class="sr-only">棚卸</h2>
+
+      <div class="inventory-controls">
+        <button type="button" id="start-count-btn" class="primary-btn">新規棚卸を開始</button>
+      </div>
+
+      <section id="active-count-section" class="card" hidden>
+        <h3>棚卸実施中</h3>
+        <div class="progress-bar-container">
+          <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar-fill"></div>
+          </div>
+          <span class="progress-text">0%</span>
+        </div>
+        <div id="count-item-list" class="count-item-list">
+          <p class="empty-state">棚卸対象の商品がありません</p>
+        </div>
+        <button type="button" id="complete-count-btn" class="primary-btn">棚卸を完了</button>
+      </section>
+
+      <section class="card">
+        <h3>棚卸履歴</h3>
+        <div id="count-history-list" class="count-history-list">
+          <p class="empty-state">棚卸履歴はありません</p>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===== Reports Tab ===== -->
+    <section id="tab-reports" class="tab-content" hidden aria-labelledby="tab-reports-label">
+      <h2 id="tab-reports-label" class="sr-only">レポート</h2>
+
+      <!-- Sub-tab navigation -->
+      <nav id="report-sub-tabs" class="sub-tab-nav" aria-label="レポートサブナビゲーション">
+        <button type="button" class="sub-tab-btn active" data-subtab="report-stock">在庫一覧</button>
+        <button type="button" class="sub-tab-btn" data-subtab="report-history">入出庫履歴</button>
+        <button type="button" class="sub-tab-btn" data-subtab="report-expiry">使用期限</button>
+        <button type="button" class="sub-tab-btn" data-subtab="report-variance">棚卸差異</button>
+      </nav>
+
+      <!-- Stock report sub-tab -->
+      <div id="subtab-report-stock" class="subtab-content active">
+        <div class="filter-bar">
+          <div class="form-group">
+            <label for="stock-report-category">カテゴリ</label>
+            <select id="stock-report-category">
+              <option value="">すべて</option>
+              <option value="consumable">消耗品</option>
+              <option value="retail">物販</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="stock-report-sort">並び替え</label>
+            <select id="stock-report-sort">
+              <option value="name">商品名</option>
+              <option value="stock-asc">在庫数（少ない順）</option>
+              <option value="stock-desc">在庫数（多い順）</option>
+              <option value="value">在庫金額</option>
+            </select>
+          </div>
+        </div>
+        <div id="stock-report-table" class="report-table-container">
+          <p class="empty-state">データがありません</p>
+        </div>
+      </div>
+
+      <!-- History report sub-tab -->
+      <div id="subtab-report-history" class="subtab-content" hidden>
+        <div class="filter-bar">
+          <div class="form-group">
+            <label for="report-history-date-from">開始日</label>
+            <input type="date" id="report-history-date-from">
+          </div>
+          <div class="form-group">
+            <label for="report-history-date-to">終了日</label>
+            <input type="date" id="report-history-date-to">
+          </div>
+          <div class="form-group">
+            <label for="report-history-product">商品</label>
+            <select id="report-history-product">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="report-history-type">種別</label>
+            <select id="report-history-type">
+              <option value="">すべて</option>
+              <option value="receive">入庫</option>
+              <option value="use">使用</option>
+              <option value="sell">販売</option>
+            </select>
+          </div>
+        </div>
+        <div id="history-report-table" class="report-table-container">
+          <p class="empty-state">データがありません</p>
+        </div>
+      </div>
+
+      <!-- Expiry report sub-tab -->
+      <div id="subtab-report-expiry" class="subtab-content" hidden>
+        <div id="expiry-report-table" class="report-table-container">
+          <p class="empty-state">使用期限が設定された商品はありません</p>
+        </div>
+      </div>
+
+      <!-- Variance report sub-tab -->
+      <div id="subtab-report-variance" class="subtab-content" hidden>
+        <div class="filter-bar">
+          <div class="form-group">
+            <label for="variance-session-select">棚卸セッション</label>
+            <select id="variance-session-select">
+              <option value="">セッションを選択...</option>
+            </select>
+          </div>
+        </div>
+        <div id="variance-report-table" class="report-table-container">
+          <p class="empty-state">棚卸セッションを選択してください</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Settings Tab ===== -->
+    <section id="tab-settings" class="tab-content" hidden aria-labelledby="tab-settings-label">
+      <h2 id="tab-settings-label" class="sr-only">設定</h2>
+
+      <!-- Clinic info -->
+      <section class="card settings-section">
+        <h3>クリニック・サロン情報</h3>
+        <div class="form-group">
+          <label for="clinic-name">店舗名</label>
+          <input type="text" id="clinic-name">
+        </div>
+        <div class="form-group">
+          <label for="owner-name">オーナー名</label>
+          <input type="text" id="owner-name">
+        </div>
+        <div class="form-group">
+          <label for="zip-code">郵便番号</label>
+          <input type="tel" id="zip-code" placeholder="000-0000">
+        </div>
+        <div class="form-group">
+          <label for="address">住所</label>
+          <input type="text" id="address">
+        </div>
+        <div class="form-group">
+          <label for="phone">電話番号</label>
+          <input type="tel" id="phone">
+        </div>
+        <button type="button" id="save-clinic-info-btn" class="primary-btn">クリニック情報を保存</button>
+      </section>
+
+      <!-- Inventory settings -->
+      <section class="card settings-section">
+        <h3>在庫管理設定</h3>
+        <div class="form-group">
+          <label for="default-expiry-alert-days">使用期限アラート日数（デフォルト）</label>
+          <input type="number" id="default-expiry-alert-days" min="1" value="30">
+        </div>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" id="scan-sound-enabled">
+            スキャン時に音を鳴らす
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="default-transaction-type">デフォルトの取引種別</label>
+          <select id="default-transaction-type">
+            <option value="receive">入庫</option>
+            <option value="use">使用</option>
+            <option value="sell">販売</option>
+          </select>
+        </div>
+        <button type="button" id="save-inventory-settings-btn" class="primary-btn">在庫管理設定を保存</button>
+      </section>
+
+      <!-- Data management -->
+      <section class="card settings-section">
+        <h3>データ管理</h3>
+        <div class="data-actions">
+          <button type="button" id="export-data-btn" class="secondary-btn">データをエクスポート</button>
+          <div class="form-group">
+            <label for="import-file">インポートファイル</label>
+            <input type="file" id="import-file" accept=".json">
+          </div>
+          <button type="button" id="import-data-btn" class="secondary-btn">データをインポート</button>
+          <button type="button" id="delete-all-btn" class="danger-btn">すべてのデータを削除</button>
+        </div>
+      </section>
+
+      <!-- Sample data -->
+      <section class="card settings-section">
+        <h3>サンプルデータ</h3>
+        <p>テスト用のサンプルデータを読み込みます。既存のデータは上書きされます。</p>
+        <button type="button" id="load-sample-data-btn" class="secondary-btn">サンプルデータを読み込む</button>
+      </section>
+
+      <!-- Notification settings -->
+      <section class="card settings-section">
+        <h3>通知設定</h3>
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" id="notification-enabled">
+            通知を有効にする
+          </label>
+        </div>
+        <button type="button" id="save-notification-btn" class="primary-btn">通知設定を保存</button>
+      </section>
+
+      <!-- App info -->
+      <section class="card settings-section">
+        <h3>アプリ情報</h3>
+        <dl class="info-list">
+          <dt>バージョン</dt>
+          <dd id="app-version">-</dd>
+          <dt>ビルド日時</dt>
+          <dd id="app-build-time">-</dd>
+        </dl>
+        <button type="button" id="check-update-btn" class="secondary-btn">アップデートを確認</button>
+      </section>
+    </section>
+
+  </main>
+
+  <!-- ==================== Overlays ==================== -->
+
+  <!-- Product form overlay -->
+  <div id="product-form-overlay" class="overlay" hidden>
+    <div class="overlay-content">
+      <header class="overlay-header">
+        <h2 id="product-form-title" class="overlay-title">商品登録</h2>
+        <button type="button" class="overlay-close-btn" aria-label="閉じる">&times;</button>
+      </header>
+      <form id="product-form" class="overlay-body" aria-label="商品フォーム">
+        <input type="hidden" id="product-edit-id">
+
+        <div class="form-group">
+          <label for="product-code">商品コード</label>
+          <input type="text" id="product-code" readonly>
+        </div>
+
+        <div class="form-group">
+          <label for="product-name">商品名</label>
+          <input type="text" id="product-name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="product-name-kana">商品名（カナ）</label>
+          <input type="text" id="product-name-kana">
+        </div>
+
+        <div class="form-group">
+          <label for="product-jan-code">JANコード</label>
+          <input type="text" id="product-jan-code">
+        </div>
+
+        <div class="form-group">
+          <label for="product-category">カテゴリ</label>
+          <select id="product-category" required>
+            <option value="consumable">消耗品</option>
+            <option value="retail">物販</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="product-unit">単位</label>
+          <input type="text" id="product-unit" placeholder="例: 個、本、箱">
+        </div>
+
+        <div class="form-group">
+          <label for="product-default-price">販売価格</label>
+          <input type="number" id="product-default-price" min="0" step="1">
+        </div>
+
+        <div class="form-group">
+          <label for="product-cost-price">仕入価格</label>
+          <input type="number" id="product-cost-price" min="0" step="1">
+        </div>
+
+        <!-- Photo section -->
+        <div class="form-group photo-section">
+          <label>写真</label>
+          <input type="file" id="photo-input" accept="image/*" capture="environment">
+          <canvas id="photo-canvas" hidden></canvas>
+          <img id="photo-preview" class="photo-preview" alt="商品写真プレビュー" hidden>
+          <button type="button" id="clear-photo-btn" class="text-btn" hidden>写真を削除</button>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" id="product-track-expiry">
+            使用期限を管理する
+          </label>
+        </div>
+
+        <div class="form-group" id="expiry-alert-days-group" hidden>
+          <label for="product-expiry-alert-days">期限アラート日数</label>
+          <input type="number" id="product-expiry-alert-days" min="1" value="30">
+        </div>
+
+        <div class="form-group">
+          <label for="product-min-stock">最低在庫数</label>
+          <input type="number" id="product-min-stock" min="0" step="1" value="0">
+        </div>
+
+        <div class="form-group">
+          <label for="product-supplier">仕入先</label>
+          <input type="text" id="product-supplier">
+        </div>
+
+        <div class="form-group">
+          <label for="product-notes">備考</label>
+          <textarea id="product-notes" rows="3"></textarea>
+        </div>
+
+        <div class="overlay-actions">
+          <button type="button" id="save-product-btn" class="primary-btn">保存</button>
+          <button type="button" id="cancel-product-btn" class="cancel-btn secondary-btn">キャンセル</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Product detail overlay -->
+  <div id="product-detail-overlay" class="overlay" hidden>
+    <div class="overlay-content">
+      <header class="overlay-header">
+        <h2 class="overlay-title">商品詳細</h2>
+        <button type="button" class="overlay-close-btn" aria-label="閉じる">&times;</button>
+      </header>
+      <div class="overlay-body">
+        <div id="product-detail-photo" class="detail-photo"></div>
+        <dl id="product-detail-info" class="detail-info">
+          <!-- Populated dynamically -->
+        </dl>
+        <div class="detail-stock">
+          <span class="detail-stock-label">現在の在庫:</span>
+          <span id="product-detail-stock" class="detail-stock-value">0</span>
+        </div>
+        <div class="overlay-actions">
+          <button type="button" id="product-detail-edit-btn" class="primary-btn">編集</button>
+          <button type="button" id="product-detail-delete-btn" class="danger-btn">削除</button>
+          <button type="button" id="close-product-detail" class="cancel-btn secondary-btn">閉じる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaction form overlay -->
+  <div id="transaction-form-overlay" class="overlay" hidden>
+    <div class="overlay-content">
+      <header class="overlay-header">
+        <h2 class="overlay-title">取引入力</h2>
+        <button type="button" class="overlay-close-btn" aria-label="閉じる">&times;</button>
+      </header>
+      <div class="overlay-body">
+        <!-- Populated dynamically as needed -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Barcode scan overlay -->
+  <div id="scan-overlay" class="overlay" hidden>
+    <div class="overlay-content overlay-fullscreen">
+      <div id="scan-reader" class="scan-reader"></div>
+      <p id="scan-status" class="scan-status">カメラを起動中...</p>
+      <button type="button" id="scan-close-btn" class="overlay-close-btn scan-close-btn" aria-label="スキャンを閉じる">&times;</button>
+    </div>
+  </div>
+
+  <!-- Numpad overlay -->
+  <div id="numpad-overlay" class="overlay" hidden>
+    <div class="overlay-content">
+      <header class="overlay-header">
+        <h2 class="overlay-title">数量入力</h2>
+      </header>
+      <div class="overlay-body">
+        <div id="numpad-product-info" class="numpad-product-info">
+          <img id="numpad-product-photo" class="numpad-photo" alt="" hidden>
+          <span id="numpad-product-name" class="numpad-product-name"></span>
+          <span id="numpad-system-stock" class="numpad-system-stock"></span>
+        </div>
+        <div id="numpad-display" class="numpad-display">0</div>
+        <div class="numpad-grid">
+          <button type="button" class="numpad-btn" data-numpad="1">1</button>
+          <button type="button" class="numpad-btn" data-numpad="2">2</button>
+          <button type="button" class="numpad-btn" data-numpad="3">3</button>
+          <button type="button" class="numpad-btn" data-numpad="4">4</button>
+          <button type="button" class="numpad-btn" data-numpad="5">5</button>
+          <button type="button" class="numpad-btn" data-numpad="6">6</button>
+          <button type="button" class="numpad-btn" data-numpad="7">7</button>
+          <button type="button" class="numpad-btn" data-numpad="8">8</button>
+          <button type="button" class="numpad-btn" data-numpad="9">9</button>
+          <button type="button" class="numpad-btn numpad-clear" data-numpad="C">C</button>
+          <button type="button" class="numpad-btn" data-numpad="0">0</button>
+          <button type="button" class="numpad-btn numpad-backspace" data-numpad="backspace">&larr;</button>
+          <button type="button" id="numpad-confirm-btn" class="numpad-btn numpad-confirm" data-numpad="confirm">確定</button>
+        </div>
+        <button type="button" id="numpad-cancel-btn" class="cancel-btn secondary-btn numpad-cancel">キャンセル</button>
+        <button type="button" class="cancel-btn secondary-btn numpad-cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm dialog overlay -->
+  <div id="confirm-dialog" class="overlay" hidden>
+    <div class="overlay-content overlay-dialog">
+      <div class="overlay-body">
+        <p id="confirm-message" class="confirm-message"></p>
+        <div class="overlay-actions">
+          <button type="button" id="confirm-ok-btn" class="primary-btn">OK</button>
+          <button type="button" id="confirm-cancel-btn" class="secondary-btn">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="version.js"></script>
+  <script src="tana.calc.js"></script>
+  <script src="script.js"></script>
+
+</body>
+</html>

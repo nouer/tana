@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お知らせ — Tana</title>
+    <meta name="description" content="Tana — 治療院・サロン向け在庫管理アプリのお知らせ">
+    <meta property="og:title" content="お知らせ — Tana">
+    <meta property="og:description" content="Tana — 治療院・サロン向け在庫管理アプリのお知らせ">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ja_JP">
+    <link rel="icon" type="image/png" href="/icons/favicon-32.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                'Helvetica Neue', Arial, 'Noto Sans CJK JP', sans-serif;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #1a1a1a;
+            background-color: #f8f8f8;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 24px 32px 64px;
+            background-color: #fff;
+            min-height: 100vh;
+        }
+
+        nav.back-link {
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        nav.back-link a {
+            color: #059669;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        nav.back-link a:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 1.2em;
+            padding-bottom: 0.4em;
+            border-bottom: 2px solid #059669;
+        }
+
+        .notice {
+            background-color: #ecfdf5;
+            border-left: 4px solid #059669;
+            padding: 20px 24px;
+            margin: 24px 0;
+            border-radius: 6px;
+        }
+
+        .notice-date {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .notice-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #059669;
+            margin-bottom: 12px;
+        }
+
+        .notice-description {
+            margin-bottom: 16px;
+            text-align: justify;
+        }
+
+        .feature-list {
+            margin: 16px 0;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            padding-left: 24px;
+            position: relative;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list li::before {
+            content: "\2713";
+            position: absolute;
+            left: 0;
+            color: #059669;
+            font-weight: bold;
+        }
+
+        .feature-name {
+            font-weight: bold;
+        }
+
+        .feature-desc {
+            color: #555;
+            font-size: 14px;
+        }
+
+        .btn-manual {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 28px;
+            background-color: #059669;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .btn-manual:hover {
+            background-color: #047857;
+            text-decoration: none;
+        }
+
+        footer {
+            margin-top: 48px;
+            padding-top: 16px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+            font-size: 13px;
+            color: #888;
+        }
+
+        footer a {
+            color: #059669;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px 16px 48px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .notice {
+                padding: 16px 16px;
+            }
+
+            .notice-title {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="back-link">
+            <a href="/">&larr; Tana アプリに戻る</a>
+        </nav>
+
+        <h1>お知らせ</h1>
+
+        <div class="notice">
+            <p class="notice-date">2025-03-05</p>
+            <p class="notice-title">Tana v1.0 リリース</p>
+            <p class="notice-description">
+                治療院・サロン向け在庫管理アプリ「Tana」v1.0 をリリースしました。
+                ブラウザだけで完結する、完全無料・登録不要の在庫管理ツールです。
+                以下の機能をご利用いただけます。
+            </p>
+
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-name">商品管理（消耗品・物販）</span><br>
+                    <span class="feature-desc">バーコードスキャン、写真管理、期限追跡</span>
+                </li>
+                <li>
+                    <span class="feature-name">5種類の入出庫記録</span><br>
+                    <span class="feature-desc">入庫・使用・販売・廃棄・調整</span>
+                </li>
+                <li>
+                    <span class="feature-name">棚卸機能</span><br>
+                    <span class="feature-desc">テンキーで素早くカウント、差異自動検出</span>
+                </li>
+                <li>
+                    <span class="feature-name">ダッシュボード</span><br>
+                    <span class="feature-desc">低在庫・期限切れアラート</span>
+                </li>
+                <li>
+                    <span class="feature-name">データのエクスポート/インポート</span><br>
+                    <span class="feature-desc">JSON形式でバックアップ・端末移行</span>
+                </li>
+                <li>
+                    <span class="feature-name">オフライン対応（PWA）</span><br>
+                    <span class="feature-desc">インターネット接続なしでも全機能が利用可能</span>
+                </li>
+            </ul>
+
+            <a href="manual.html" class="btn-manual">ユーザーマニュアルを見る</a>
+        </div>
+
+        <footer>
+            <p>Tana はオープンソースソフトウェアです（MIT License）。</p>
+            <p><a href="https://github.com/" target="_blank" rel="noopener">GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>

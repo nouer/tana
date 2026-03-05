@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Inventory/shelf icon for Tana inventory management app -->
+  <!-- Theme color: #059669 (emerald green) -->
+
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="2" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="40" y="40" width="432" height="432" rx="48" ry="48" fill="#059669" filter="url(#shadow)"/>
+
+  <!-- Shelf frame -->
+  <!-- Left vertical -->
+  <rect x="100" y="90" width="24" height="340" rx="4" fill="#ffffff" opacity="0.95"/>
+  <!-- Right vertical -->
+  <rect x="388" y="90" width="24" height="340" rx="4" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Top shelf -->
+  <rect x="92" y="140" width="328" height="12" rx="3" fill="#ffffff" opacity="0.95"/>
+  <!-- Middle shelf -->
+  <rect x="92" y="250" width="328" height="12" rx="3" fill="#ffffff" opacity="0.95"/>
+  <!-- Bottom shelf -->
+  <rect x="92" y="360" width="328" height="12" rx="3" fill="#ffffff" opacity="0.95"/>
+
+  <!-- Top shelf items: boxes -->
+  <rect x="145" y="100" width="50" height="40" rx="4" fill="#34d399" opacity="0.9"/>
+  <rect x="205" y="110" width="45" height="30" rx="4" fill="#6ee7b7" opacity="0.85"/>
+  <rect x="265" y="95" width="55" height="45" rx="4" fill="#a7f3d0" opacity="0.8"/>
+  <rect x="335" y="105" width="40" height="35" rx="4" fill="#34d399" opacity="0.9"/>
+
+  <!-- Middle shelf items: bottles/containers -->
+  <rect x="140" y="195" width="30" height="55" rx="6" fill="#6ee7b7" opacity="0.9"/>
+  <rect x="185" y="210" width="35" height="40" rx="4" fill="#a7f3d0" opacity="0.85"/>
+  <rect x="240" y="200" width="28" height="50" rx="6" fill="#34d399" opacity="0.9"/>
+  <rect x="285" y="205" width="40" height="45" rx="4" fill="#6ee7b7" opacity="0.85"/>
+  <rect x="345" y="198" width="32" height="52" rx="6" fill="#a7f3d0" opacity="0.8"/>
+
+  <!-- Bottom shelf items: larger boxes -->
+  <rect x="140" y="305" width="60" height="55" rx="6" fill="#34d399" opacity="0.9"/>
+  <rect x="215" y="315" width="50" height="45" rx="4" fill="#a7f3d0" opacity="0.85"/>
+  <rect x="280" y="308" width="55" height="52" rx="5" fill="#6ee7b7" opacity="0.9"/>
+  <rect x="350" y="320" width="40" height="40" rx="4" fill="#34d399" opacity="0.85"/>
+
+  <!-- Small barcode detail on a box -->
+  <rect x="152" y="320" width="36" height="4" rx="1" fill="#059669" opacity="0.5"/>
+  <rect x="152" y="327" width="36" height="3" rx="1" fill="#059669" opacity="0.4"/>
+  <rect x="152" y="333" width="24" height="3" rx="1" fill="#059669" opacity="0.3"/>
+
+  <!-- Clipboard/checklist overlay (bottom right) -->
+  <g transform="translate(340, 340)">
+    <rect x="0" y="0" width="56" height="72" rx="6" fill="#ffffff" opacity="0.95"/>
+    <rect x="14" y="-6" width="28" height="12" rx="4" fill="#047857"/>
+    <rect x="10" y="18" width="24" height="3" rx="1" fill="#059669" opacity="0.7"/>
+    <rect x="10" y="28" width="20" height="3" rx="1" fill="#059669" opacity="0.5"/>
+    <rect x="10" y="38" width="28" height="3" rx="1" fill="#059669" opacity="0.7"/>
+    <rect x="10" y="48" width="16" height="3" rx="1" fill="#059669" opacity="0.5"/>
+    <path d="M38 20 L42 24 L48 16" stroke="#059669" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M38 30 L42 34 L48 26" stroke="#059669" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>
