@@ -473,7 +473,7 @@ END FUNCTION
 **ファイル**: `local_app/tana.calc.js`
 
 **入力**:
-- `countItems`: Array<{productId, productName, systemQty, actualQty}> — 棚卸項目一覧
+- `countItems`: Array<{productId, productName, systemQuantity, actualQuantity}> — 棚卸項目一覧
 
 **出力**:
 ```
@@ -483,7 +483,7 @@ END FUNCTION
     discrepancies: number,        // 差異がある商品数
     totalVariancePositive: number, // プラス差異の合計
     totalVarianceNegative: number, // マイナス差異の合計
-    items: Array<{productId, productName, systemQty, actualQty, variance}>
+    items: Array<{productId, productName, systemQuantity, actualQuantity, variance}>
 }
 ```
 
@@ -509,10 +509,10 @@ FUNCTION generateVarianceReport(countItems)
     items = []
 
     FOR EACH item IN countItems
-        variance = calculateVariance(item.systemQty, item.actualQty)
+        variance = calculateVariance(item.systemQuantity, item.actualQuantity)
 
-        // actualQty が null/undefined でなければカウント済み
-        IF item.actualQty !== null AND item.actualQty !== undefined THEN
+        // actualQuantity が null/undefined でなければカウント済み
+        IF item.actualQuantity !== null AND item.actualQuantity !== undefined THEN
             countedItems++
         END IF
 
@@ -529,8 +529,8 @@ FUNCTION generateVarianceReport(countItems)
         items に追加:
             productId:   item.productId
             productName: item.productName
-            systemQty:   item.systemQty
-            actualQty:   item.actualQty
+            systemQuantity: item.systemQuantity
+            actualQuantity: item.actualQuantity
             variance:    variance
     END FOR
 
@@ -542,7 +542,7 @@ END FUNCTION
 **計算例**:
 
 入力:
-| productId | productName | systemQty | actualQty |
+| productId | productName | systemQuantity | actualQuantity |
 |-----------|-----------|-----------|-----------|
 | P-0001 | シャンプーA | 10 | 12 |
 | P-0002 | トリートメントB | 5 | 5 |
@@ -558,15 +558,15 @@ END FUNCTION
     totalVariancePositive: 2,
     totalVarianceNegative: -2,
     items: [
-        {productId: "P-0001", productName: "シャンプーA",       systemQty: 10, actualQty: 12,   variance: 2},
-        {productId: "P-0002", productName: "トリートメントB",    systemQty: 5,  actualQty: 5,    variance: 0},
-        {productId: "P-0003", productName: "オイルC",           systemQty: 8,  actualQty: 6,    variance: -2},
-        {productId: "P-0004", productName: "クリームD",         systemQty: 3,  actualQty: null, variance: -3}
+        {productId: "P-0001", productName: "シャンプーA",       systemQuantity: 10, actualQuantity: 12,   variance: 2},
+        {productId: "P-0002", productName: "トリートメントB",    systemQuantity: 5,  actualQuantity: 5,    variance: 0},
+        {productId: "P-0003", productName: "オイルC",           systemQuantity: 8,  actualQuantity: 6,    variance: -2},
+        {productId: "P-0004", productName: "クリームD",         systemQuantity: 3,  actualQuantity: null, variance: -3}
     ]
 }
 ```
 
-**注意**: `actualQty` が `null` の場合でも `calculateVariance` により `variance` は `0 - systemQty` として計算される。
+**注意**: `actualQuantity` が `null` の場合でも `calculateVariance` により `variance` は `0 - systemQuantity` として計算される。
 ただし `countedItems` には含まれない（null/undefined チェック）。
 
 ---
@@ -576,7 +576,7 @@ END FUNCTION
 **ファイル**: `local_app/tana.calc.js`
 
 **入力**:
-- `countItems`: Array<{productId, systemQty, actualQty}> — 棚卸項目一覧
+- `countItems`: Array<{productId, systemQuantity, actualQuantity}> — 棚卸項目一覧
 - `countDate`: string — 棚卸実施日（YYYY-MM-DD 形式）
 
 **出力**:
@@ -591,7 +591,7 @@ FUNCTION buildAdjustmentTransactions(countItems, countDate)
 
     result = []
     FOR EACH item IN countItems
-        variance = calculateVariance(item.systemQty, item.actualQty)
+        variance = calculateVariance(item.systemQuantity, item.actualQuantity)
 
         IF variance !== 0 THEN
             result に追加:
@@ -610,7 +610,7 @@ END FUNCTION
 **計算例**:
 
 入力 (countDate = "2026-03-05"):
-| productId | systemQty | actualQty |
+| productId | systemQuantity | actualQuantity |
 |-----------|-----------|-----------|
 | P-0001 | 10 | 12 |
 | P-0002 | 5 | 5 |
@@ -623,6 +623,56 @@ END FUNCTION
 | P-0003 | adjust | -2 | 2026-03-05 | 棚卸調整 |
 
 （P-0002 は差異 0 のため生成されない）
+
+---
+
+### 3.4 未カウント商品の自動補完 (`completeCount` 内処理)
+
+**ファイル**: `local_app/script.js` — `completeCount()` 関数
+
+**概要**: 棚卸完了時に未カウント商品がある場合、理論在庫数（systemQuantity）で自動補完する。
+
+**アルゴリズム**:
+```
+FUNCTION completeCount() 内の自動補完処理
+    items = activeCount.items OR []
+
+    // 1. 未カウント商品を抽出
+    uncounted = items.filter(item => item.status !== 'counted')
+
+    // 2. 未カウント商品がある場合、確認ダイアログを表示
+    IF uncounted.length > 0 THEN
+        autoFill = showConfirm('未カウントの商品が ' + uncounted.length + ' 件あります。\n理論在庫数で棚卸しますか？')
+        IF autoFill が false THEN
+            RETURN  // 棚卸完了を中止
+        END IF
+
+        // 3. 未カウント商品に理論在庫数を設定
+        FOR EACH item IN uncounted
+            item.actualQuantity = item.systemQuantity
+            item.status = 'counted'
+        END FOR
+    END IF
+
+    // 4. 以降、通常の棚卸完了フロー（差異レポート生成・調整トランザクション作成）に進む
+END FUNCTION
+```
+
+**動作例**:
+
+棚卸に5商品あり、3商品がカウント済み・2商品が未カウントの場合:
+
+| 商品 | カウント前 status | systemQuantity | actualQuantity（補完前） | actualQuantity（補完後） |
+|------|-----------------|----------------|------------------------|------------------------|
+| シャンプーA | counted | 10 | 12 | 12 |
+| トリートメントB | counted | 5 | 5 | 5 |
+| オイルC | counted | 8 | 6 | 6 |
+| クリームD | pending | 3 | null | 3 |
+| ワックスE | pending | 7 | null | 7 |
+
+確認ダイアログ: 「未カウントの商品が 2 件あります。理論在庫数で棚卸しますか？」
+
+**注意**: ユーザーが確認ダイアログでキャンセルした場合、棚卸完了処理全体が中止される。
 
 ---
 
@@ -1495,39 +1545,49 @@ END FUNCTION
 
 **入力**:
 - `products`: Array — 商品マスタ配列
-- `stockMap`: Object — `{ productId: currentStock }` 在庫数マップ
-- `valueMap`: Object — `{ productId: stockValue }` 在庫金額マップ
+- `transactions`: Array — 全取引履歴配列
 
 **出力**:
-- `Array<{productId, productName, productCode, category, currentStock, stockValue, unit}>`
+- `Array<{productId, productName, productCode, category, currentStock, minStock, unit, status}>`
+  - `status`: `'zero'`（在庫0以下）、`'low'`（在庫が最小在庫以下）、`'normal'`
 
 **アルゴリズム**:
 ```
-FUNCTION buildStockSummaryReport(products, stockMap, valueMap)
+FUNCTION buildStockSummaryReport(products, transactions)
     IF products が配列でない THEN
         RETURN []
     END IF
 
-    stockMap = stockMap OR {}
-    valueMap = valueMap OR {}
+    // transactions から stockMap を内部構築
+    stockMap = {}
+    IF transactions が配列 THEN
+        FOR EACH tx IN transactions
+            stockMap[tx.productId] += tx.quantity  // 初期値 0
+        END FOR
+    END IF
 
     RETURN products.map:
+        currentStock = stockMap[product.id] が存在すれば その値、なければ 0
+        minStock = Number(product.minStock) OR 0
+
         productId:    product.id
         productName:  product.name
-        productCode:  product.code OR ''
+        productCode:  product.productCode OR ''
         category:     product.category
-        currentStock: stockMap[product.id] が存在すれば その値、なければ 0
-        stockValue:   valueMap[product.id] が存在すれば その値、なければ 0
+        currentStock: currentStock
+        minStock:     minStock
         unit:         product.unit OR ''
+        status:       currentStock <= 0 なら 'zero'、
+                      currentStock <= minStock なら 'low'、
+                      それ以外 'normal'
 END FUNCTION
 ```
 
 **出力例**:
 
 入力:
-- products: `[{id: "P-0001", name: "シャンプーA", code: "P-0001", category: "retail", unit: "本"}]`
-- stockMap: `{"P-0001": 15}`
-- valueMap: `{"P-0001": 12000}`
+- products: `[{id: "P-0001", name: "シャンプーA", productCode: "P-0001", category: "retail", unit: "本", minStock: 5}]`
+- transactions: `[{productId: "P-0001", quantity: 20}, {productId: "P-0001", quantity: -5}]`
 
 出力:
 ```json
@@ -1537,8 +1597,9 @@ END FUNCTION
     "productCode": "P-0001",
     "category": "retail",
     "currentStock": 15,
-    "stockValue": 12000,
-    "unit": "本"
+    "minStock": 5,
+    "unit": "本",
+    "status": "normal"
 }]
 ```
 
@@ -1550,26 +1611,36 @@ END FUNCTION
 
 **入力**:
 - `transactions`: Array — 全取引履歴配列
+- `products`: Array — 商品マスタ配列（取引に商品名・商品コードを付与するために使用）
 - `filters`: Object — フィルタ条件
-  - `startDate`: string (YYYY-MM-DD) — 開始日（任意）
-  - `endDate`: string (YYYY-MM-DD) — 終了日（任意）
+  - `startDate` / `dateFrom`: string (YYYY-MM-DD) — 開始日（任意、両方指定時は `startDate` 優先）
+  - `endDate` / `dateTo`: string (YYYY-MM-DD) — 終了日（任意、両方指定時は `endDate` 優先）
   - `productId`: string — 商品ID（任意）
   - `transactionType`: string — 取引種別（任意）
 
 **出力**:
-- `Array` — フィルタ条件に一致する取引の配列
+- `Array<{id, productId, productName, productCode, transactionType, quantity, date, lotNumber, expiryDate, notes}>` — フィルタ条件に一致し、商品情報で補完された取引の配列（日付降順→作成日時降順でソート）
 
 **アルゴリズム**:
 ```
-FUNCTION buildTransactionReport(transactions, filters)
+FUNCTION buildTransactionReport(transactions, products, filters)
     IF transactions が配列でない THEN
         RETURN []
     END IF
-    IF filters が falsy THEN
-        RETURN transactions   // フィルタなしは全件返却
+
+    // products から productMap を構築
+    productMap = {}
+    IF products が配列 THEN
+        FOR EACH p IN products
+            productMap[p.id] = p
+        END FOR
     END IF
 
-    RETURN transactions をフィルタ:
+    filters = filters OR {}
+    startDate = filters.startDate OR filters.dateFrom OR ''
+    endDate = filters.endDate OR filters.dateTo OR ''
+
+    filtered = transactions をフィルタ:
         // 各フィルタ条件は設定されている場合のみ適用
         IF filters.productId が設定済み AND tx.productId !== filters.productId THEN
             除外
@@ -1577,13 +1648,30 @@ FUNCTION buildTransactionReport(transactions, filters)
         IF filters.transactionType が設定済み AND tx.transactionType !== filters.transactionType THEN
             除外
         END IF
-        IF filters.startDate が設定済み AND tx.date < filters.startDate THEN
+        IF startDate が設定済み AND tx.date < startDate THEN
             除外
         END IF
-        IF filters.endDate が設定済み AND tx.date > filters.endDate THEN
+        IF endDate が設定済み AND tx.date > endDate THEN
             除外
         END IF
         上記いずれにも該当しなければ 採用
+
+    // 日付降順→作成日時降順でソート
+    filtered をソート: date DESC, createdAt DESC
+
+    // 商品情報を付与して返却
+    RETURN filtered.map:
+        p = productMap[tx.productId]
+        id:              tx.id
+        productId:       tx.productId
+        productName:     p が存在すれば p.name、なければ '(不明)'
+        productCode:     p が存在すれば p.productCode OR ''、なければ ''
+        transactionType: tx.transactionType
+        quantity:        tx.quantity
+        date:            tx.date
+        lotNumber:       tx.lotNumber OR ''
+        expiryDate:      tx.expiryDate OR ''
+        notes:           tx.notes OR ''
 END FUNCTION
 ```
 
@@ -1593,6 +1681,7 @@ END FUNCTION
 |---------|------|
 | `{productId: "P-0001"}` | P-0001 の取引のみ |
 | `{startDate: "2026-01-01", endDate: "2026-03-31"}` | 1〜3月の取引のみ |
+| `{dateFrom: "2026-01-01", dateTo: "2026-03-31"}` | 上と同等（エイリアス） |
 | `{transactionType: "receive"}` | 入庫のみ |
 | `{productId: "P-0001", transactionType: "use"}` | P-0001 の使用取引のみ |
 | `null` | 全件返却 |
@@ -1607,48 +1696,61 @@ END FUNCTION
 **ファイル**: `local_app/tana.calc.js`
 
 **入力**:
+- `transactions`: Array — 全取引履歴配列
 - `products`: Array — 商品マスタ配列
-- `stockByLotMap`: Object — `{ productId: [{lotNumber, expiryDate, quantity}] }` ロット別在庫マップ
 
 **出力**:
-- `Array<{productId, productName, lotNumber, expiryDate, quantity, status}>`
+- `Array<{productId, productName, lotNumber, expiryDate, quantity, daysUntil, status}>`
+  - `status`: `'expired'`（期限切れ）、`'critical'`（30日以内）、`'warning'`（alertDays以内）、`'normal'`
 
 **アルゴリズム**:
 ```
-FUNCTION buildExpiryReport(products, stockByLotMap)
-    IF products が配列でない OR stockByLotMap が falsy THEN
+FUNCTION buildExpiryReport(transactions, products)
+    IF transactions が配列でない OR products が配列でない THEN
         RETURN []
     END IF
 
-    now = 現在日時（new Date()）
-    result = []
+    // trackExpiry が有効な商品のみ対象
+    expiryProducts = products.filter(p => p.trackExpiry)
+    productMap = expiryProducts を productId でマップ化
 
-    FOR EACH product IN products
-        lots = stockByLotMap[product.id]
-        IF lots が配列でない THEN
+    // transactions からロット別在庫を内部構築
+    lotMap = {}
+    FOR EACH tx IN transactions
+        IF productMap[tx.productId] が存在しない OR tx.lotNumber が空 OR tx.expiryDate が空 THEN
             CONTINUE
         END IF
-
-        alertDays = Number(product.expiryAlertDays) OR 0
-
-        FOR EACH lot IN lots
-            status = getExpiryStatus(lot.expiryDate, alertDays, now)
-
-            result に追加:
-                productId:   product.id
-                productName: product.name
-                lotNumber:   lot.lotNumber
-                expiryDate:  lot.expiryDate
-                quantity:    lot.quantity
-                status:      status         // "ok", "warning", "expired"
-        END FOR
+        key = tx.productId + '|' + tx.lotNumber
+        lotMap[key].quantity += tx.quantity  // 初期値 0、expiryDate も保持
     END FOR
 
-    RETURN result
+    today = formatDate(new Date())
+
+    // 在庫が正のロットのみ返却
+    RETURN lotMap の全エントリ
+        .filter(lot => lot.quantity > 0)
+        .map:
+            p = productMap[lot.productId]
+            daysUntil = ceil((new Date(lot.expiryDate) - new Date(today)) / 86400000)
+            alertDays = Number(p.expiryAlertDays) OR 30
+
+            status = daysUntil <= 0 なら 'expired'、
+                     daysUntil <= 30 なら 'critical'、
+                     daysUntil <= alertDays なら 'warning'、
+                     それ以外 'normal'
+
+            productId:   lot.productId
+            productName: p.name OR ''
+            lotNumber:   lot.lotNumber
+            expiryDate:  lot.expiryDate
+            quantity:    lot.quantity
+            daysUntil:   daysUntil
+            status:      status
+        .sort(daysUntil 昇順)
 END FUNCTION
 ```
 
-**注意**: `getExpiryAlerts` と異なり、ステータスが `"ok"` のロットも含めて全ロットを返却する。
+**注意**: `getExpiryAlerts` と異なり、ステータスが `"normal"` のロットも含めて在庫が正の全ロットを返却する。結果は `daysUntil` 昇順でソートされる。
 
 ---
 
@@ -1660,14 +1762,14 @@ END FUNCTION
 - `inventoryCount`: Object — 棚卸データ
   - `countDate`: string — 棚卸日
   - `status`: string — 棚卸ステータス
-  - `items`: Array<{productName, systemQty, actualQty}> — 棚卸項目
+  - `items`: Array<{productName, systemQuantity, actualQuantity}> — 棚卸項目
 
 **出力**:
 ```
 {
     countDate: string|null,
     status: string|null,
-    items: Array<{productId, productName, systemQty, actualQty, variance}>,
+    items: Array<{productId, productName, systemQuantity, actualQuantity, variance}>,
     summary: {
         totalItems: number,
         countedItems: number,
@@ -1711,8 +1813,8 @@ END FUNCTION
     "countDate": "2026-03-05",
     "status": "completed",
     "items": [
-        {"productId": "P-0001", "productName": "シャンプーA", "systemQty": 10, "actualQty": 12},
-        {"productId": "P-0002", "productName": "オイルB",     "systemQty": 5,  "actualQty": 5}
+        {"productId": "P-0001", "productName": "シャンプーA", "systemQuantity": 10, "actualQuantity": 12},
+        {"productId": "P-0002", "productName": "オイルB",     "systemQuantity": 5,  "actualQuantity": 5}
     ]
 }
 ```
@@ -1723,8 +1825,8 @@ END FUNCTION
     "countDate": "2026-03-05",
     "status": "completed",
     "items": [
-        {"productId": "P-0001", "productName": "シャンプーA", "systemQty": 10, "actualQty": 12, "variance": 2},
-        {"productId": "P-0002", "productName": "オイルB",     "systemQty": 5,  "actualQty": 5,  "variance": 0}
+        {"productId": "P-0001", "productName": "シャンプーA", "systemQuantity": 10, "actualQuantity": 12, "variance": 2},
+        {"productId": "P-0002", "productName": "オイルB",     "systemQuantity": 5,  "actualQuantity": 5,  "variance": 0}
     ],
     "summary": {
         "totalItems": 2,

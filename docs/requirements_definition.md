@@ -407,6 +407,8 @@ local_app/
   - 備考: 「棚卸調整」
 - 差異レポートの計算ロジック: `generateVarianceReport()` 関数
 
+> **備考（冪等性）:** 棚卸完了後、UIは `activeCountId` をクリアすることで再完了操作を防止する。コードレベルでの冪等性ガードは設けておらず、UI状態管理に依拠する設計としている。
+
 ### 7.5 棚卸履歴
 
 - 過去の棚卸セッション一覧を表示する
@@ -750,6 +752,8 @@ checkDigit = (10 - (sum % 10)) % 10
 | `stock_transactions` | 配列であること | 「stock_transactionsが配列ではありません」 |
 | `inventory_counts` | 配列であること | 「inventory_countsが配列ではありません」 |
 | `settings` | 存在する場合はオブジェクトまたは配列であること | 「settingsはオブジェクトまたは配列である必要があります」 |
+
+> **既知の制限（参照整合性）:** インポート時に参照整合性の検証は行わない。例えば `stock_transactions[n].productId` が `products` 内の既存商品IDを参照しているかどうかはチェックしない。これは設計上の既知の制限である。
 
 ---
 

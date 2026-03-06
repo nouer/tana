@@ -77,7 +77,7 @@ tana/
 │   ├── manual.html               # マニュアル（MD から自動生成）
 │   ├── promotion.html            # 紹介ページ（MD から自動生成）
 │   ├── sample_data.json          # サンプルデータ
-│   ├── e2e.test.js               # E2E テスト（Playwright）
+│   ├── e2e.test.js               # E2E テスト（Puppeteer）
 │   ├── tana.calc.test.js         # ユニットテスト（Jest）
 │   ├── icons/                    # PWA アイコン
 │   │   ├── icon.svg              # マスター SVG
@@ -107,12 +107,12 @@ tana/
 │   └── generate_version.sh       # バージョン情報生成（version.js）
 ├── tools/                        # 開発ツール
 │   ├── generate_sample_data.js   # サンプルデータ生成
-│   └── take_screenshots.js       # スクリーンショット撮影（Playwright）
+│   └── take_screenshots.js       # スクリーンショット撮影（Puppeteer）
 ├── nginx/
 │   └── default.conf              # nginx 設定（JS/CSS キャッシュ無効化）
 ├── docker-compose.yml            # Docker Compose 定義（3 サービス）
 ├── Dockerfile                    # アプリ用（nginx:alpine）
-├── Dockerfile.test               # テスト用（Playwright）
+├── Dockerfile.test               # テスト用（Puppeteer）
 ├── package.json                  # npm 設定（テスト依存）
 ├── README.md                     # プロジェクト概要
 └── CLAUDE.md                     # AI 開発ガイドライン
@@ -270,8 +270,8 @@ tana/
     {
       "productId": "prod_hari_001",
       "productName": "マッサージオイル",
-      "systemQty": 10,
-      "actualQty": 9
+      "systemQuantity": 10,
+      "actualQuantity": 9
     }
   ],
   "completedAt": "2026-03-01T15:00:00.000Z",
@@ -287,8 +287,8 @@ tana/
 | `items` | array | Yes | 棚卸項目の配列 |
 | `items[].productId` | string | Yes | 対象商品の `products.id` |
 | `items[].productName` | string | Yes | 商品名（スナップショット） |
-| `items[].systemQty` | number | Yes | システム上の在庫数（棚卸開始時点） |
-| `items[].actualQty` | number/null | No | 実地棚卸数量（未カウントは `null`） |
+| `items[].systemQuantity` | number | Yes | システム上の在庫数（棚卸開始時点） |
+| `items[].actualQuantity` | number/null | No | 実地棚卸数量（未カウントは `null`） |
 | `completedAt` | string | No | 完了日時（ISO 8601、完了時に設定） |
 | `createdAt` | string | Yes | 作成日時（ISO 8601） |
 
@@ -296,10 +296,10 @@ tana/
 
 ```json
 {
-  "id": "clinic_info",
+  "id": "business_info",
   "value": {
-    "clinicName": "サンプル治療院",
-    "ownerName": "山田太郎",
+    "businessName": "サンプル治療院",
+    "contactName": "山田太郎",
     "zipCode": "100-0001",
     "address": "東京都千代田区千代田1-1",
     "phone": "03-1234-5678"
@@ -313,7 +313,7 @@ tana/
 
 | キー | 値の型 | 説明 |
 |------|-------|------|
-| `clinic_info` | object | クリニック・サロン情報（名前、オーナー名、郵便番号、住所、電話番号） |
+| `business_info` | object | 事業者情報（店舗名、担当者名、郵便番号、住所、電話番号）。レガシーの `clinic_info` は読み込み時に `business_info` へ自動マイグレーションされる |
 | `inventory_settings` | object | 在庫管理設定（期限アラート日数、スキャン音、デフォルト取引種別） |
 | `notification_enabled` | boolean | 通知の有効/無効 |
 | `notification_hash` | string | 通知コンテンツの SHA-256 ハッシュ（既読判定用） |
@@ -632,7 +632,7 @@ PWA としてインストール可能な条件:
 |---------|------|----------|
 | `tana-app` | テスト・E2E 用アプリサーバー。ホストへポート公開しない | なし（内部ネットワーク `172.33.0.10`） |
 | `tana-app-public` | ブラウザアクセス用アプリサーバー | `${TANA_PORT:-8088}:80` |
-| `tana-test` | E2E テスト実行コンテナ（Playwright） | なし（`tana-app` に依存） |
+| `tana-test` | E2E テスト実行コンテナ（Puppeteer） | なし（`tana-app` に依存） |
 
 **ネットワーク**
 - ブリッジネットワーク `tana_net`（サブネット `172.33.0.0/24`）

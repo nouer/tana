@@ -143,6 +143,8 @@
 | inventory_counts | id | countDate、status |
 | app_settings | id | なし |
 
+※ いずれのストアも `autoIncrement` は使用しない。IDはアプリケーション側で `generateId()` により明示的に生成する。
+
 ### 2.2 汎用CRUD操作
 
 | 関数名 | 操作 | 引数 | 戻り値 |
@@ -168,7 +170,7 @@
 
 | 関数名 | 処理内容 | 備考 |
 |--------|---------|------|
-| `saveTransaction(type)` | 取引記録の新規作成 | `dbAdd('stock_transactions', ...)` でID自動生成。use/sellの数量は負数に変換して保存 |
+| `saveTransaction(type)` | 取引記録の新規作成 | `generateId()` で明示的にIDを生成した後、`dbAdd('stock_transactions', ...)` で保存。use/sellの数量は負数に変換して保存 |
 | `loadTransactionHistory()` | 全取引履歴の取得・表示 | `dbGetAll('stock_transactions')` → 日付降順ソート。フィルター（日付範囲、商品、種別）適用可 |
 | `lookupByBarcode(code)` | JANコードで商品検索 | `dbGetByIndex('products', 'janCode', code)` → アクティブな商品のみ返却 |
 
@@ -178,7 +180,7 @@
 |--------|---------|------|
 | `startNewCount()` | 新規棚卸セッション作成 | 全アクティブ商品をアイテムとして登録。status: `in_progress` |
 | `confirmNumpad()` | 実数入力の確定 | 該当アイテムの `actualQuantity` と `status = 'counted'` を更新 |
-| `completeCount()` | 棚卸完了処理 | 未カウント品目がある場合は確認ダイアログで理論在庫の自動補完を提案。差異のある商品に `adjust` 取引を自動生成。status: `completed` に更新 |
+| `completeCount()` | 棚卸完了処理 | まず「棚卸を完了しますか？差異がある商品は自動調整されます。」の確認ダイアログを表示。続いて未カウント品目がある場合は理論在庫の自動補完を提案する確認ダイアログを表示。差異のある商品に `adjust` 取引を自動生成。status: `completed` に更新 |
 | `cancelCount()` | 棚卸中止 | `dbDelete` で棚卸レコードを物理削除 |
 
 ### 2.6 設定操作
@@ -272,7 +274,8 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | 取引保存時の数量入力 | NaN または 0以下 | 「数量を正しく入力してください」 | トースト（error） |
 | テンキー確定時 | NaN または 負数 | 「正しい数量を入力してください」 | トースト（error） |
 | 商品コード重複 | IndexedDB ConstraintError | 「その商品コードは既に使用されています」 | トースト（error） |
-| 棚卸完了時の未カウント | `status !== 'counted'` の商品が存在 | 「未カウントの商品が N 件あります。\n理論在庫数で棚卸しますか？」 | 確認ダイアログ（OK→理論在庫で自動補完、キャンセル→中断） |
+| 棚卸完了の初回確認 | 「棚卸を完了」ボタン押下時（常時） | 「棚卸を完了しますか？差異がある商品は自動調整されます。」 | 確認ダイアログ（OK→続行、キャンセル→中断） |
+| 棚卸完了時の未カウント | 初回確認後、`status !== 'counted'` の商品が存在 | 「未カウントの商品が N 件あります。\n理論在庫数で棚卸しますか？」 | 確認ダイアログ（OK→理論在庫で自動補完、キャンセル→中断） |
 | use/sell時の在庫マイナス | 現在庫 + 数量 < 0 | 「在庫がマイナスになります（現在: N）。続行しますか？」 | 確認ダイアログ |
 
 ---
