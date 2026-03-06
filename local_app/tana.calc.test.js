@@ -574,7 +574,13 @@ describe('インポートバリデーション', () => {
     test('UT-IMP-008: settingsがオブジェクトでない → invalid', () => {
         const result = TanaCalc.validateImportData({ ...validImportData, settings: 'not object' });
         expect(result.valid).toBe(false);
-        expect(result.errors).toContain('settingsはオブジェクトである必要があります');
+        expect(result.errors).toContain('settingsはオブジェクトまたは配列である必要があります');
+    });
+
+    test('UT-IMP-009: settingsが配列形式 → valid（後方互換）', () => {
+        const data = { ...validImportData, settings: [{ id: 'clinic_info', value: {} }] };
+        const result = TanaCalc.validateImportData(data);
+        expect(result.valid).toBe(true);
     });
 });
 
@@ -737,12 +743,14 @@ describe('ユーティリティ', () => {
 describe('レポート', () => {
     test('UT-RPT-001: buildStockSummaryReport 商品あり', () => {
         const products = [
-            { id: 'P1', name: '商品A', code: 'P-0001', category: 'consumable', unit: '個' },
-            { id: 'P2', name: '商品B', code: 'P-0002', category: 'retail', unit: '本' }
+            { id: 'P1', name: '商品A', productCode: 'P-0001', category: 'consumable', unit: '個', minStock: 5 },
+            { id: 'P2', name: '商品B', productCode: 'P-0002', category: 'retail', unit: '本', minStock: 3 }
         ];
-        const stockMap = { P1: 10, P2: 5 };
-        const valueMap = { P1: 1000, P2: 500 };
-        const result = TanaCalc.buildStockSummaryReport(products, stockMap, valueMap);
+        const transactions = [
+            { productId: 'P1', quantity: 10 },
+            { productId: 'P2', quantity: 5 }
+        ];
+        const result = TanaCalc.buildStockSummaryReport(products, transactions);
         expect(result).toHaveLength(2);
         expect(result[0]).toEqual({
             productId: 'P1',
@@ -750,8 +758,9 @@ describe('レポート', () => {
             productCode: 'P-0001',
             category: 'consumable',
             currentStock: 10,
-            stockValue: 1000,
-            unit: '個'
+            minStock: 5,
+            unit: '個',
+            status: 'normal'
         });
         expect(result[1]).toEqual({
             productId: 'P2',
@@ -759,8 +768,9 @@ describe('レポート', () => {
             productCode: 'P-0002',
             category: 'retail',
             currentStock: 5,
-            stockValue: 500,
-            unit: '本'
+            minStock: 3,
+            unit: '本',
+            status: 'normal'
         });
     });
 
@@ -771,7 +781,7 @@ describe('レポート', () => {
             { id: 'P3', name: '商品C', category: 'consumable' }
         ];
         const filtered = TanaCalc.filterByCategory(products, 'consumable');
-        const result = TanaCalc.buildStockSummaryReport(filtered, {}, {});
+        const result = TanaCalc.buildStockSummaryReport(filtered, []);
         expect(result).toHaveLength(2);
         expect(result.every(r => r.category === 'consumable')).toBe(true);
     });
@@ -783,33 +793,32 @@ describe('レポート', () => {
             { productId: 'P1', transactionType: 'sell', date: '2025-02-01', quantity: 2 },
             { productId: 'P1', transactionType: 'receive', date: '2025-03-01', quantity: 5 }
         ];
-        const result = TanaCalc.buildTransactionReport(transactions, {
+        const products = [{ id: 'P1', name: '商品A', productCode: 'P-0001' }];
+        const result = TanaCalc.buildTransactionReport(transactions, products, {
             startDate: '2025-01-10',
             endDate: '2025-02-01'
         });
         expect(result).toHaveLength(2);
-        expect(result[0].date).toBe('2025-01-15');
-        expect(result[1].date).toBe('2025-02-01');
+        expect(result[0].date).toBe('2025-02-01');
+        expect(result[1].date).toBe('2025-01-15');
+        expect(result[0].productName).toBe('商品A');
     });
 
     test('UT-RPT-004: buildExpiryReport ステータス色分け', () => {
         const products = [
-            { id: 'P1', name: '商品A', expiryAlertDays: 30 }
+            { id: 'P1', name: '商品A', expiryAlertDays: 30, trackExpiry: true }
         ];
-        // Use dates far in the past and far in the future relative to now
-        const stockByLotMap = {
-            P1: [
-                { lotNumber: 'L1', expiryDate: '2020-01-01', quantity: 5 },
-                { lotNumber: 'L2', expiryDate: '2099-12-31', quantity: 3 }
-            ]
-        };
-        const result = TanaCalc.buildExpiryReport(products, stockByLotMap);
+        const transactions = [
+            { productId: 'P1', lotNumber: 'L1', expiryDate: '2020-01-01', quantity: 5, transactionType: 'receive' },
+            { productId: 'P1', lotNumber: 'L2', expiryDate: '2099-12-31', quantity: 3, transactionType: 'receive' }
+        ];
+        const result = TanaCalc.buildExpiryReport(transactions, products);
         expect(result).toHaveLength(2);
         expect(result[0].status).toBe('expired');
         expect(result[0].productId).toBe('P1');
         expect(result[0].productName).toBe('商品A');
         expect(result[0].lotNumber).toBe('L1');
-        expect(result[1].status).toBe('ok');
+        expect(result[1].status).toBe('normal');
         expect(result[1].lotNumber).toBe('L2');
     });
 
@@ -841,6 +850,117 @@ describe('レポート', () => {
         expect(result.status).toBeNull();
         expect(result.items).toHaveLength(0);
         expect(result.summary).toEqual({});
+    });
+
+    test('UT-RPT-007: buildStockSummaryReport ステータス判定（欠品・不足・正常）', () => {
+        const products = [
+            { id: 'P1', name: '欠品商品', minStock: 5 },
+            { id: 'P2', name: '不足商品', minStock: 10 },
+            { id: 'P3', name: '正常商品', minStock: 3 }
+        ];
+        const transactions = [
+            { productId: 'P1', quantity: -5 },
+            { productId: 'P1', quantity: 5 },
+            { productId: 'P1', quantity: -5 },  // P1: net -5 → <=0 → zero
+            { productId: 'P2', quantity: 5 },    // P2: 5 <= 10 → low
+            { productId: 'P3', quantity: 20 }    // P3: 20 > 3 → normal
+        ];
+        const result = TanaCalc.buildStockSummaryReport(products, transactions);
+        expect(result[0].status).toBe('zero');
+        expect(result[1].status).toBe('low');
+        expect(result[2].status).toBe('normal');
+    });
+
+    test('UT-RPT-008: buildStockSummaryReport 空配列', () => {
+        expect(TanaCalc.buildStockSummaryReport([], [])).toHaveLength(0);
+    });
+
+    test('UT-RPT-009: buildTransactionReport 商品IDフィルタ', () => {
+        const transactions = [
+            { productId: 'P1', transactionType: 'receive', date: '2025-01-01', quantity: 10 },
+            { productId: 'P2', transactionType: 'receive', date: '2025-01-01', quantity: 5 }
+        ];
+        const products = [
+            { id: 'P1', name: '商品A' },
+            { id: 'P2', name: '商品B' }
+        ];
+        const result = TanaCalc.buildTransactionReport(transactions, products, { productId: 'P1' });
+        expect(result).toHaveLength(1);
+        expect(result[0].productName).toBe('商品A');
+    });
+
+    test('UT-RPT-010: buildTransactionReport 取引種別フィルタ', () => {
+        const transactions = [
+            { productId: 'P1', transactionType: 'receive', date: '2025-01-01', quantity: 10 },
+            { productId: 'P1', transactionType: 'use', date: '2025-01-02', quantity: -3 }
+        ];
+        const result = TanaCalc.buildTransactionReport(transactions, [], { transactionType: 'use' });
+        expect(result).toHaveLength(1);
+        expect(result[0].transactionType).toBe('use');
+    });
+
+    test('UT-RPT-011: buildTransactionReport dateFrom/dateTo フィルタ', () => {
+        const transactions = [
+            { productId: 'P1', transactionType: 'receive', date: '2025-01-01', quantity: 10 },
+            { productId: 'P1', transactionType: 'use', date: '2025-01-15', quantity: -3 },
+            { productId: 'P1', transactionType: 'sell', date: '2025-02-01', quantity: -2 }
+        ];
+        const result = TanaCalc.buildTransactionReport(transactions, [], { dateFrom: '2025-01-10', dateTo: '2025-01-20' });
+        expect(result).toHaveLength(1);
+        expect(result[0].date).toBe('2025-01-15');
+    });
+
+    test('UT-RPT-012: buildExpiryReport ロット別在庫集計', () => {
+        const products = [{ id: 'P1', name: '商品A', trackExpiry: true, expiryAlertDays: 30 }];
+        const transactions = [
+            { productId: 'P1', lotNumber: 'L1', expiryDate: '2099-12-31', quantity: 10, transactionType: 'receive' },
+            { productId: 'P1', lotNumber: 'L1', expiryDate: '2099-12-31', quantity: -3, transactionType: 'use' }
+        ];
+        const result = TanaCalc.buildExpiryReport(transactions, products);
+        expect(result).toHaveLength(1);
+        expect(result[0].quantity).toBe(7);
+    });
+
+    test('UT-RPT-013: buildExpiryReport 在庫0ロット除外', () => {
+        const products = [{ id: 'P1', name: '商品A', trackExpiry: true, expiryAlertDays: 30 }];
+        const transactions = [
+            { productId: 'P1', lotNumber: 'L1', expiryDate: '2099-12-31', quantity: 5, transactionType: 'receive' },
+            { productId: 'P1', lotNumber: 'L1', expiryDate: '2099-12-31', quantity: -5, transactionType: 'use' }
+        ];
+        const result = TanaCalc.buildExpiryReport(transactions, products);
+        expect(result).toHaveLength(0);
+    });
+
+    test('UT-RPT-014: buildExpiryReport trackExpiry=false 除外', () => {
+        const products = [{ id: 'P1', name: '商品A', trackExpiry: false }];
+        const transactions = [
+            { productId: 'P1', lotNumber: 'L1', expiryDate: '2099-12-31', quantity: 5, transactionType: 'receive' }
+        ];
+        const result = TanaCalc.buildExpiryReport(transactions, products);
+        expect(result).toHaveLength(0);
+    });
+});
+
+// ============================================================
+// 11b. getCategoryLabel (UT-CAT-001~003)
+// ============================================================
+
+describe('カテゴリラベル', () => {
+    test('UT-CAT-001: "consumable" → "消耗品"', () => {
+        expect(TanaCalc.getCategoryLabel('consumable')).toBe('消耗品');
+    });
+
+    test('UT-CAT-002: "retail" → "物販"', () => {
+        expect(TanaCalc.getCategoryLabel('retail')).toBe('物販');
+    });
+
+    test('UT-CAT-003: 不明値 → そのまま返す', () => {
+        expect(TanaCalc.getCategoryLabel('unknown')).toBe('unknown');
+    });
+
+    test('UT-CAT-004: null/undefined → 空文字', () => {
+        expect(TanaCalc.getCategoryLabel(null)).toBe('');
+        expect(TanaCalc.getCategoryLabel(undefined)).toBe('');
     });
 });
 

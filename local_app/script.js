@@ -34,6 +34,8 @@ let editingProductId = null;
 let activeCountId = null;
 let scanCallback = null;
 let confirmResolve = null;
+let _pendingNotificationHash = null;
+let _toastTimer = null;
 
 // =============================================================================
 // 3. IndexedDB Setup
@@ -171,14 +173,21 @@ async function saveSetting(key, value) {
 // 6. Toast Notifications
 // =============================================================================
 
-function showToast(message, type = 'info', duration = 3000) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-    toast.textContent = message;
-    toast.className = 'toast-show ' + type;
-    setTimeout(() => {
-        toast.className = '';
-    }, duration);
+function showToast(text, type) {
+    const el = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = text;
+    el.className = 'toast ' + type;
+    el.style.display = 'block';
+    clearTimeout(_toastTimer);
+    if (type !== 'error' && type !== 'info') {
+        _toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+}
+
+function initToast() {
+    document.getElementById('toast-close').addEventListener('click', () => {
+        document.getElementById('toast').style.display = 'none';
+    });
 }
 
 // =============================================================================
@@ -399,12 +408,14 @@ function renderProductCard(product, stock) {
     const unit = esc(product.unit || '');
     const minStock = product.minStock || 0;
 
-    let stockClass = 'stock-normal';
+    let stockClass = 'stock-ok';
     if (stock <= 0) {
-        stockClass = 'stock-zero';
+        stockClass = 'stock-out';
     } else if (stock <= minStock) {
         stockClass = 'stock-low';
     }
+
+    const categoryLabel = TanaCalc ? esc(TanaCalc.getCategoryLabel(product.category)) : category;
 
     const photoHtml = product.photo
         ? '<img src="' + product.photo + '" alt="' + name + '" class="product-thumb" />'
@@ -414,7 +425,7 @@ function renderProductCard(product, stock) {
         + '<div class="product-card-photo">' + photoHtml + '</div>'
         + '<div class="product-card-info">'
         + '<div class="product-card-name">' + name + '</div>'
-        + (category ? '<span class="category-badge">' + category + '</span>' : '')
+        + (categoryLabel ? '<span class="category-badge">' + categoryLabel + '</span>' : '')
         + '<div class="product-card-code">' + code + '</div>'
         + '</div>'
         + '<div class="product-card-stock">'
@@ -452,9 +463,10 @@ function openProductForm(productId) {
             setVal('product-category', product.category);
             setVal('product-unit', product.unit);
             setVal('product-min-stock', product.minStock);
-            setVal('product-description', product.description);
+            setVal('product-notes', product.notes);
             setVal('product-supplier', product.supplier);
-            setVal('product-price', product.price);
+            setVal('product-default-price', product.defaultPrice);
+            setVal('product-cost-price', product.costPrice);
 
             const trackExpiryEl = document.getElementById('product-track-expiry');
             if (trackExpiryEl) trackExpiryEl.checked = product.trackExpiry || false;
@@ -509,9 +521,10 @@ async function saveProduct() {
         category: getValue('product-category'),
         unit: getValue('product-unit') || '個',
         minStock: parseInt(getValue('product-min-stock')) || 0,
-        description: getValue('product-description'),
+        notes: getValue('product-notes'),
         supplier: getValue('product-supplier'),
-        price: parseFloat(getValue('product-price')) || 0,
+        defaultPrice: parseFloat(getValue('product-default-price')) || 0,
+        costPrice: parseFloat(getValue('product-cost-price')) || 0,
         trackExpiry: document.getElementById('product-track-expiry')
             ? document.getElementById('product-track-expiry').checked
             : false,
@@ -593,12 +606,14 @@ async function showProductDetail(productId) {
         : '<div class="product-detail-photo product-thumb-placeholder"></div>';
 
     const minStock = product.minStock || 0;
-    let stockClass = 'stock-normal';
+    let stockClass = 'stock-ok';
     if (stock <= 0) {
-        stockClass = 'stock-zero';
+        stockClass = 'stock-out';
     } else if (stock <= minStock) {
         stockClass = 'stock-low';
     }
+
+    const categoryLabel = TanaCalc ? TanaCalc.getCategoryLabel(product.category) : (product.category || '');
 
     let html = '<div class="product-detail">'
         + photoHtml
@@ -610,13 +625,14 @@ async function showProductDetail(productId) {
         + '<table class="detail-table">'
         + '<tr><th>商品コード</th><td>' + esc(product.productCode || '') + '</td></tr>'
         + '<tr><th>JANコード</th><td>' + esc(product.janCode || '') + '</td></tr>'
-        + '<tr><th>カテゴリ</th><td>' + esc(product.category || '') + '</td></tr>'
+        + '<tr><th>カテゴリ</th><td>' + esc(categoryLabel) + '</td></tr>'
         + '<tr><th>単位</th><td>' + esc(product.unit || '個') + '</td></tr>'
         + '<tr><th>最低在庫数</th><td>' + minStock + '</td></tr>'
         + '<tr><th>仕入先</th><td>' + esc(product.supplier || '') + '</td></tr>'
-        + '<tr><th>単価</th><td>' + (product.price ? product.price.toLocaleString() + ' 円' : '-') + '</td></tr>'
+        + '<tr><th>販売価格</th><td>' + (product.defaultPrice ? product.defaultPrice.toLocaleString() + ' 円' : '-') + '</td></tr>'
+        + '<tr><th>仕入価格</th><td>' + (product.costPrice ? product.costPrice.toLocaleString() + ' 円' : '-') + '</td></tr>'
         + '<tr><th>期限管理</th><td>' + (product.trackExpiry ? 'あり' : 'なし') + '</td></tr>'
-        + '<tr><th>備考</th><td>' + esc(product.description || '') + '</td></tr>'
+        + '<tr><th>備考</th><td>' + esc(product.notes || '') + '</td></tr>'
         + '</table>'
         + '<div class="detail-actions">'
         + '<button class="btn btn-primary" onclick="openProductForm(\'' + product.id + '\'); closeProductDetail();">編集</button>'
@@ -1159,15 +1175,15 @@ async function loadInventoryTab() {
             .sort((a, b) => (b.countDate || '').localeCompare(a.countDate || ''));
 
         if (completedCounts.length === 0) {
-            historySection.innerHTML = '<h3>棚卸履歴</h3><div class="empty-state"><p>履歴がありません</p></div>';
+            historySection.innerHTML = '<p class="empty-state">履歴がありません</p>';
         } else {
-            let html = '<h3>棚卸履歴</h3><div class="count-history-list">';
+            let html = '';
             completedCounts.forEach(count => {
                 const itemCount = count.items ? count.items.length : 0;
                 const varianceCount = count.items
                     ? count.items.filter(i => i.actualQuantity !== i.systemQuantity).length
                     : 0;
-                html += '<div class="count-history-item">'
+                html += '<div class="count-history-item" data-count-id="' + count.id + '" onclick="showCountHistoryDetail(\'' + count.id + '\')">'
                     + '<div class="count-history-date">' + (count.countDate || '') + '</div>'
                     + '<div class="count-history-meta">'
                     + '<span>' + itemCount + ' 品目</span>'
@@ -1175,10 +1191,53 @@ async function loadInventoryTab() {
                     + '</div>'
                     + '</div>';
             });
-            html += '</div>';
             historySection.innerHTML = html;
         }
     }
+}
+
+async function showCountHistoryDetail(countId) {
+    const count = await dbGet('inventory_counts', countId);
+    if (!count) return;
+
+    const TanaCalc = window.TanaCalc;
+    const esc = TanaCalc ? TanaCalc.escapeHtml : (s) => s;
+
+    const overlay = document.getElementById('count-history-detail-overlay');
+    const summaryEl = document.getElementById('count-history-detail-summary');
+    const itemsEl = document.getElementById('count-history-detail-items');
+    if (!overlay || !summaryEl || !itemsEl) return;
+
+    const items = count.items || [];
+    const varianceCount = items.filter(i => i.actualQuantity !== i.systemQuantity).length;
+
+    summaryEl.innerHTML = '<table class="detail-table">'
+        + '<tr><th>棚卸日</th><td>' + esc(count.countDate || '') + '</td></tr>'
+        + '<tr><th>完了日時</th><td>' + esc(count.completedAt ? new Date(count.completedAt).toLocaleString('ja-JP') : '') + '</td></tr>'
+        + '<tr><th>品目数</th><td>' + items.length + '</td></tr>'
+        + '<tr><th>差異あり</th><td>' + varianceCount + ' 件</td></tr>'
+        + '</table>';
+
+    let html = '<table class="report-table">'
+        + '<thead><tr>'
+        + '<th>商品名</th><th>理論在庫</th><th>実数</th><th>差異</th>'
+        + '</tr></thead><tbody>';
+
+    items.forEach(item => {
+        const diff = (item.actualQuantity || 0) - (item.systemQuantity || 0);
+        const diffSign = diff > 0 ? '+' : '';
+        const diffClass = diff !== 0 ? 'variance-diff' : '';
+        html += '<tr class="' + diffClass + '">'
+            + '<td>' + esc(item.productName || '') + '</td>'
+            + '<td>' + (item.systemQuantity || 0) + '</td>'
+            + '<td>' + (item.actualQuantity || 0) + '</td>'
+            + '<td>' + diffSign + diff + '</td>'
+            + '</tr>';
+    });
+
+    html += '</tbody></table>';
+    itemsEl.innerHTML = html;
+    overlay.hidden = false;
 }
 
 async function startNewCount() {
@@ -1253,8 +1312,7 @@ function renderActiveCount(count) {
 
     html += '</div>'
         + '<div class="count-actions">'
-        + '<button class="btn btn-primary" onclick="completeCount()" '
-        + (countedCount < totalCount ? 'disabled' : '') + '>棚卸完了</button>'
+        + '<button class="btn btn-primary" onclick="completeCount()">棚卸完了</button>'
         + '<button class="btn btn-danger" onclick="cancelCount()">中止</button>'
         + '</div>';
 
@@ -1383,11 +1441,17 @@ async function completeCount() {
     const TanaCalc = window.TanaCalc;
     const items = activeCount.items || [];
 
-    // Check that all items are counted
+    // Check for uncounted items — offer auto-fill with system quantities
     const uncounted = items.filter(i => i.status !== 'counted');
     if (uncounted.length > 0) {
-        showToast('未カウントの商品があります（' + uncounted.length + ' 件）', 'error');
-        return;
+        const autoFill = await showConfirm(
+            '未カウントの商品が ' + uncounted.length + ' 件あります。\n理論在庫数で棚卸しますか？'
+        );
+        if (!autoFill) return;
+        for (const item of uncounted) {
+            item.actualQuantity = item.systemQuantity;
+            item.status = 'counted';
+        }
     }
 
     // Generate variance report
@@ -1671,27 +1735,7 @@ async function loadStockReport() {
     const activeProducts = products.filter(p => p.isActive !== false);
     const transactions = await dbGetAll('stock_transactions');
 
-    let reportData = [];
-    if (TanaCalc && TanaCalc.buildStockSummaryReport) {
-        reportData = TanaCalc.buildStockSummaryReport(activeProducts, transactions);
-    } else {
-        // Fallback
-        const stockMap = {};
-        transactions.forEach(tx => {
-            if (!stockMap[tx.productId]) stockMap[tx.productId] = 0;
-            stockMap[tx.productId] += tx.quantity;
-        });
-        reportData = activeProducts.map(p => ({
-            productCode: p.productCode,
-            name: p.name,
-            category: p.category || '',
-            unit: p.unit || '個',
-            currentStock: stockMap[p.id] || 0,
-            minStock: p.minStock || 0,
-            status: (stockMap[p.id] || 0) <= 0 ? 'zero'
-                : (stockMap[p.id] || 0) <= (p.minStock || 0) ? 'low' : 'normal',
-        }));
-    }
+    const reportData = TanaCalc ? TanaCalc.buildStockSummaryReport(activeProducts, transactions) : [];
 
     const containerEl = document.getElementById('stock-report-table');
     if (!containerEl) return;
@@ -1711,10 +1755,11 @@ async function loadStockReport() {
         const statusLabel = row.status === 'zero' ? '欠品'
             : row.status === 'low' ? '不足' : '正常';
         const statusClass = 'status-' + row.status;
+        const categoryLabel = TanaCalc ? TanaCalc.getCategoryLabel(row.category) : (row.category || '');
         html += '<tr>'
             + '<td>' + esc(row.productCode || '') + '</td>'
-            + '<td>' + esc(row.name || '') + '</td>'
-            + '<td>' + esc(row.category || '') + '</td>'
+            + '<td>' + esc(row.productName || '') + '</td>'
+            + '<td>' + esc(categoryLabel) + '</td>'
             + '<td>' + row.currentStock + ' ' + esc(row.unit || '') + '</td>'
             + '<td>' + row.minStock + '</td>'
             + '<td><span class="' + statusClass + '">' + statusLabel + '</span></td>'
@@ -1738,38 +1783,10 @@ async function loadHistoryReport() {
     const dateFrom = dateFromEl ? dateFromEl.value : '';
     const dateTo = dateToEl ? dateToEl.value : '';
 
-    let reportData = [];
-    if (TanaCalc && TanaCalc.buildTransactionReport) {
-        reportData = TanaCalc.buildTransactionReport(transactions, products, {
-            dateFrom: dateFrom,
-            dateTo: dateTo,
-        });
-    } else {
-        // Fallback
-        const productMap = {};
-        products.forEach(p => { productMap[p.id] = p; });
-
-        let filtered = transactions;
-        if (dateFrom) filtered = filtered.filter(tx => tx.date >= dateFrom);
-        if (dateTo) filtered = filtered.filter(tx => tx.date <= dateTo);
-
-        filtered.sort((a, b) => {
-            if (a.date !== b.date) return b.date.localeCompare(a.date);
-            return (b.createdAt || '').localeCompare(a.createdAt || '');
-        });
-
-        reportData = filtered.map(tx => {
-            const product = productMap[tx.productId];
-            return {
-                date: tx.date,
-                productName: product ? product.name : '(不明)',
-                transactionType: tx.transactionType,
-                quantity: tx.quantity,
-                lotNumber: tx.lotNumber || '',
-                notes: tx.notes || '',
-            };
-        });
-    }
+    const reportData = TanaCalc ? TanaCalc.buildTransactionReport(transactions, products, {
+        dateFrom: dateFrom,
+        dateTo: dateTo,
+    }) : [];
 
     const containerEl = document.getElementById('history-report-table');
     if (!containerEl) return;
@@ -1818,38 +1835,7 @@ async function loadExpiryReport() {
     const activeProducts = products.filter(p => p.isActive !== false);
     const transactions = await dbGetAll('stock_transactions');
 
-    let reportData = [];
-    if (TanaCalc && TanaCalc.buildExpiryReport) {
-        reportData = TanaCalc.buildExpiryReport(transactions, activeProducts);
-    } else {
-        // Fallback: find all transactions with expiry dates
-        const productMap = {};
-        activeProducts.forEach(p => { productMap[p.id] = p; });
-
-        const expiryTx = transactions.filter(tx => tx.expiryDate && tx.quantity > 0);
-        const now = new Date();
-
-        reportData = expiryTx.map(tx => {
-            const product = productMap[tx.productId];
-            const expDate = new Date(tx.expiryDate);
-            const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-            let status = 'normal';
-            if (daysUntil < 0) status = 'expired';
-            else if (daysUntil <= 30) status = 'critical';
-            else if (daysUntil <= 90) status = 'warning';
-
-            return {
-                productName: product ? product.name : '(不明)',
-                lotNumber: tx.lotNumber || '',
-                expiryDate: tx.expiryDate,
-                daysUntil: daysUntil,
-                status: status,
-                quantity: tx.quantity,
-            };
-        });
-
-        reportData.sort((a, b) => a.daysUntil - b.daysUntil);
-    }
+    const reportData = TanaCalc ? TanaCalc.buildExpiryReport(transactions, activeProducts) : [];
 
     const containerEl = document.getElementById('expiry-report-table');
     if (!containerEl) return;
@@ -1960,18 +1946,31 @@ async function loadVarianceReport() {
 // =============================================================================
 
 async function loadSettings() {
-    // Load clinic info
-    const clinicInfo = await getSetting('clinic_info');
-    if (clinicInfo) {
+    // Load business info (旧 clinic_info からのマイグレーション)
+    let businessInfo = await getSetting('business_info');
+    if (!businessInfo) {
+        const legacy = await getSetting('clinic_info');
+        if (legacy) {
+            businessInfo = {
+                businessName: legacy.clinicName || '',
+                contactName: legacy.ownerName || '',
+                zipCode: legacy.zipCode || '',
+                address: legacy.address || '',
+                phone: legacy.phone || '',
+            };
+            await saveSetting('business_info', businessInfo);
+        }
+    }
+    if (businessInfo) {
         const setVal = (id, val) => {
             const el = document.getElementById(id);
             if (el) el.value = val || '';
         };
-        setVal('clinic-name', clinicInfo.clinicName);
-        setVal('owner-name', clinicInfo.ownerName);
-        setVal('zip-code', clinicInfo.zipCode);
-        setVal('address', clinicInfo.address);
-        setVal('phone', clinicInfo.phone);
+        setVal('business-name', businessInfo.businessName);
+        setVal('contact-name', businessInfo.contactName);
+        setVal('zip-code', businessInfo.zipCode);
+        setVal('address', businessInfo.address);
+        setVal('phone', businessInfo.phone);
     }
 
     // Load inventory settings
@@ -1985,7 +1984,7 @@ async function loadSettings() {
 
     // Load notification setting
     const notifEnabled = await getSetting('notification_enabled');
-    const notifEl = document.getElementById('notification-enabled');
+    const notifEl = document.getElementById('setting-notify-enabled');
     if (notifEl) notifEl.checked = notifEnabled !== false;
 
     // Load last export time
@@ -2018,22 +2017,22 @@ async function loadSettings() {
     }
 }
 
-async function saveClinicInfo() {
+async function saveBusinessInfo() {
     const getValue = (id) => {
         const el = document.getElementById(id);
         return el ? el.value.trim() : '';
     };
 
-    const clinicInfo = {
-        clinicName: getValue('clinic-name'),
-        ownerName: getValue('owner-name'),
+    const businessInfo = {
+        businessName: getValue('business-name'),
+        contactName: getValue('contact-name'),
         zipCode: getValue('zip-code'),
         address: getValue('address'),
         phone: getValue('phone'),
     };
 
-    await saveSetting('clinic_info', clinicInfo);
-    showToast('施設情報を保存しました', 'success');
+    await saveSetting('business_info', businessInfo);
+    showToast('事業者情報を保存しました', 'success');
 }
 
 async function saveInventorySettings() {
@@ -2049,29 +2048,29 @@ async function saveInventorySettings() {
     showToast('在庫設定を保存しました', 'success');
 }
 
-async function saveNotificationSetting() {
-    const notifEl = document.getElementById('setting-notification');
-    const enabled = notifEl ? notifEl.checked : true;
-    await saveSetting('notification_enabled', enabled);
-    showToast('通知設定を保存しました', 'success');
-}
-
 // Data management
 async function exportData() {
     try {
         const products = await dbGetAll('products');
         const transactions = await dbGetAll('stock_transactions');
         const counts = await dbGetAll('inventory_counts');
-        const settings = await dbGetAll('app_settings');
+
+        // settings をオブジェクト形式で収集（pado パターン）
+        const settingKeys = ['business_info', 'inventory_settings'];
+        const settings = {};
+        for (const key of settingKeys) {
+            const val = await getSetting(key);
+            if (val !== null) settings[key] = val;
+        }
 
         const exportObj = {
+            exportedAt: new Date().toISOString(),
             appName: 'tana',
             version: '1.0.0',
-            exportDate: new Date().toISOString(),
-            products: products,
+            products,
             stock_transactions: transactions,
             inventory_counts: counts,
-            settings: settings,
+            settings,
         };
 
         const jsonStr = JSON.stringify(exportObj, null, 2);
@@ -2099,7 +2098,11 @@ async function exportData() {
 
         // Update last export time
         await saveSetting('last_export_time', new Date().toISOString());
-        showToast('データをエクスポートしました', 'success');
+
+        const pc = products.length;
+        const tc = transactions.length;
+        const cc = counts.length;
+        showToast(pc + '件の商品、' + tc + '件の取引、' + cc + '件の棚卸をエクスポートしました', 'success');
 
         // Refresh settings display
         await loadSettings();
@@ -2109,112 +2112,83 @@ async function exportData() {
     }
 }
 
-async function importData() {
-    const fileInput = document.getElementById('import-file');
-    if (!fileInput) {
-        // Create a temporary file input
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = async (e) => {
-            await processImportFile(e.target.files[0]);
-        };
-        input.click();
-        return;
-    }
-
-    // Use existing file input
-    if (fileInput.files.length === 0) {
-        showToast('ファイルを選択してください', 'error');
-        return;
-    }
-
-    await processImportFile(fileInput.files[0]);
-}
-
-async function processImportFile(file) {
+async function importData(event) {
+    const file = event.target.files[0];
     if (!file) return;
 
+    let data;
     try {
         const text = await file.text();
-        const data = JSON.parse(text);
+        data = JSON.parse(text);
+    } catch (e) {
+        showToast('JSONファイルの形式が不正です', 'error');
+        event.target.value = '';
+        return;
+    }
 
-        const TanaCalc = window.TanaCalc;
-
-        // Validate import data
-        if (TanaCalc && TanaCalc.validateImportData) {
-            const result = TanaCalc.validateImportData(data);
-            if (result && !result.valid) {
-                showToast('無効なデータです: ' + result.errors[0], 'error');
-                return;
-            }
-        } else {
-            // Basic validation
-            if (!data.appName || data.appName !== 'tana') {
-                showToast('Tanaのエクスポートファイルではありません', 'error');
-                return;
-            }
+    // バリデーション
+    const TanaCalc = window.TanaCalc;
+    if (TanaCalc && TanaCalc.validateImportData) {
+        const result = TanaCalc.validateImportData(data);
+        if (result && !result.valid) {
+            showToast('インポートエラー: ' + result.errors.join(', '), 'error');
+            event.target.value = '';
+            return;
         }
+    }
 
-        // Show confirmation with counts
-        const productCount = data.products ? data.products.length : 0;
-        const txCount = data.stock_transactions ? data.stock_transactions.length : 0;
-        const countCount = data.inventory_counts ? data.inventory_counts.length : 0;
+    // カウント表示付き確認ダイアログ
+    const productCount = (data.products || []).length;
+    const txCount = (data.stock_transactions || []).length;
+    const countCount = (data.inventory_counts || []).length;
+    const settingsCount = data.settings
+        ? (Array.isArray(data.settings) ? data.settings.length : Object.keys(data.settings).length)
+        : 0;
 
-        const confirmed = await showConfirm(
-            'データをインポートしますか？\n\n'
-            + '商品: ' + productCount + ' 件\n'
-            + '取引: ' + txCount + ' 件\n'
-            + '棚卸: ' + countCount + ' 件\n\n'
-            + '同じIDのデータは上書きされます。'
-        );
-        if (!confirmed) return;
+    const msg = '以下のデータをインポートします:\n'
+        + '- 商品: ' + productCount + '件\n'
+        + '- 取引: ' + txCount + '件\n'
+        + '- 棚卸: ' + countCount + '件\n'
+        + '- 設定: ' + settingsCount + '件\n\n'
+        + '既存データとマージされます。続行しますか？';
 
-        // Merge: add/update products
-        if (data.products && Array.isArray(data.products)) {
-            for (const product of data.products) {
-                await dbUpdate('products', product);
-            }
+    const confirmed = await showConfirm(msg);
+    if (!confirmed) {
+        event.target.value = '';
+        return;
+    }
+
+    try {
+        // マージ（upsert）
+        for (const p of (data.products || [])) {
+            await dbUpdate('products', p);
         }
-
-        // Add transactions
-        if (data.stock_transactions && Array.isArray(data.stock_transactions)) {
-            for (const tx of data.stock_transactions) {
-                try {
-                    await dbAdd('stock_transactions', tx);
-                } catch (e) {
-                    // Duplicate key - update instead
-                    await dbUpdate('stock_transactions', tx);
+        for (const tx of (data.stock_transactions || [])) {
+            await dbUpdate('stock_transactions', tx);
+        }
+        for (const c of (data.inventory_counts || [])) {
+            await dbUpdate('inventory_counts', c);
+        }
+        // settings: オブジェクト形式（新）と配列形式（旧）の両方に対応
+        if (data.settings) {
+            if (Array.isArray(data.settings)) {
+                for (const s of data.settings) {
+                    await dbUpdate('app_settings', s);
+                }
+            } else {
+                for (const [key, value] of Object.entries(data.settings)) {
+                    await saveSetting(key, value);
                 }
             }
         }
 
-        // Add counts
-        if (data.inventory_counts && Array.isArray(data.inventory_counts)) {
-            for (const count of data.inventory_counts) {
-                try {
-                    await dbAdd('inventory_counts', count);
-                } catch (e) {
-                    await dbUpdate('inventory_counts', count);
-                }
-            }
-        }
-
-        // Update settings
-        if (data.settings && Array.isArray(data.settings)) {
-            for (const setting of data.settings) {
-                await dbUpdate('app_settings', setting);
-            }
-        }
-
-        showToast('データをインポートしました', 'success');
-
-        // Reload current tab
+        showToast('インポートが完了しました', 'success');
         switchTab(currentTab);
     } catch (err) {
-        console.error('Import failed:', err);
-        showToast('インポートに失敗しました: ' + err.message, 'error');
+        showToast('インポート中にエラーが発生しました: ' + err.message, 'error');
     }
+
+    event.target.value = '';
 }
 
 async function deleteAllData() {
@@ -2295,52 +2269,34 @@ async function loadSampleData() {
             showToast('サンプルデータの読み込みに失敗しました', 'error');
             return;
         }
-
         const data = await response.json();
 
         const confirmed = await showConfirm(
-            'サンプルデータを読み込みますか？\n既存データはそのまま保持されます。'
+            'サンプルデータをインポートします。既存データとマージされ、重複するIDは自動的にスキップされます。'
         );
         if (!confirmed) return;
 
-        // Import sample data
-        if (data.products && Array.isArray(data.products)) {
-            for (const product of data.products) {
-                try {
-                    await dbAdd('products', product);
-                } catch (e) {
-                    await dbUpdate('products', product);
-                }
+        var counts = { products: 0, transactions: 0, counts: 0 };
+        for (const p of (data.products || [])) {
+            const existing = await dbGet('products', p.id);
+            if (!existing) { await dbUpdate('products', p); counts.products++; }
+        }
+        for (const tx of (data.stock_transactions || [])) {
+            const existing = await dbGet('stock_transactions', tx.id);
+            if (!existing) { await dbUpdate('stock_transactions', tx); counts.transactions++; }
+        }
+        for (const c of (data.inventory_counts || [])) {
+            const existing = await dbGet('inventory_counts', c.id);
+            if (!existing) { await dbUpdate('inventory_counts', c); counts.counts++; }
+        }
+        if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+            for (const [key, value] of Object.entries(data.settings)) {
+                const existing = await getSetting(key);
+                if (existing === null) await saveSetting(key, value);
             }
         }
 
-        if (data.stock_transactions && Array.isArray(data.stock_transactions)) {
-            for (const tx of data.stock_transactions) {
-                try {
-                    await dbAdd('stock_transactions', tx);
-                } catch (e) {
-                    await dbUpdate('stock_transactions', tx);
-                }
-            }
-        }
-
-        if (data.inventory_counts && Array.isArray(data.inventory_counts)) {
-            for (const count of data.inventory_counts) {
-                try {
-                    await dbAdd('inventory_counts', count);
-                } catch (e) {
-                    await dbUpdate('inventory_counts', count);
-                }
-            }
-        }
-
-        if (data.settings && Array.isArray(data.settings)) {
-            for (const setting of data.settings) {
-                await dbUpdate('app_settings', setting);
-            }
-        }
-
-        showToast('サンプルデータを読み込みました', 'success');
+        showToast('インポート完了: 商品' + counts.products + '件、取引' + counts.transactions + '件、棚卸' + counts.counts + '件', 'success');
         switchTab(currentTab);
     } catch (err) {
         console.error('Sample data load failed:', err);
@@ -2348,60 +2304,94 @@ async function loadSampleData() {
     }
 }
 
+async function autoLoadSampleData() {
+    try {
+        const response = await fetch('sample_data.json');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        const TanaCalc = window.TanaCalc;
+        if (TanaCalc && TanaCalc.validateImportData) {
+            const result = TanaCalc.validateImportData(data);
+            if (result && !result.valid) return;
+        }
+
+        // 重複スキップで挿入
+        for (const p of (data.products || [])) {
+            const existing = await dbGet('products', p.id);
+            if (!existing) await dbUpdate('products', p);
+        }
+        for (const tx of (data.stock_transactions || [])) {
+            const existing = await dbGet('stock_transactions', tx.id);
+            if (!existing) await dbUpdate('stock_transactions', tx);
+        }
+        for (const c of (data.inventory_counts || [])) {
+            const existing = await dbGet('inventory_counts', c.id);
+            if (!existing) await dbUpdate('inventory_counts', c);
+        }
+        if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+            for (const [key, value] of Object.entries(data.settings)) {
+                const existing = await getSetting(key);
+                if (existing === null) await saveSetting(key, value);
+            }
+        }
+
+        switchTab('dashboard');
+        showToast('サンプルデータを読み込みました。ご自身のデータで始める場合は、設定タブの「全データ削除」からリセットできます。', 'info');
+    } catch (err) {
+        console.error('Auto sample data load failed:', err);
+    }
+}
+
 // =============================================================================
 // 16. Notification Check
 // =============================================================================
 
+const NOTIFY_URL = '/notify.html';
+
 async function checkNotification() {
     try {
-        const notifEnabled = await getSetting('notification_enabled');
-        if (notifEnabled === false) return;
+        const enabled = await getSetting('notification_enabled');
+        if (enabled === false) return;
 
-        const response = await fetch('notify.html', { cache: 'no-cache' });
-        if (!response.ok) return;
+        const res = await fetch(NOTIFY_URL + '?_t=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
 
-        const content = await response.text();
-        if (!content || content.trim() === '') return;
+        const html = await res.text();
+        const newHash = await hashString(html);
+        const savedHash = await getSetting('notification_hash');
 
-        const currentHash = await hashString(content);
-        const storedHash = await getSetting('notification_hash');
-
-        if (storedHash !== currentHash) {
-            // New notification
-            await saveSetting('notification_hash', currentHash);
-
-            const indicator = document.getElementById('notification-indicator');
-            if (indicator) indicator.hidden = false;
-
-            // Store notification content
-            await saveSetting('notification_content', content);
+        if (newHash !== savedHash) {
+            _pendingNotificationHash = newHash;
+            showNotificationToast('開発元からのお知らせがあります。タップして確認');
         }
-    } catch (err) {
-        // Notification check failed silently (might be offline)
-        console.log('Notification check skipped:', err.message);
+    } catch (e) {
+        // オフライン or ネットワークエラー時は静かにスキップ
     }
 }
 
-function showNotification() {
-    getSetting('notification_content').then(content => {
-        if (!content) return;
+function showNotificationToast(text) {
+    const el = document.getElementById('toast');
+    document.getElementById('toast-text').textContent = text;
+    el.className = 'toast info clickable';
+    el.style.display = 'block';
+    clearTimeout(_toastTimer);
 
-        const overlay = document.getElementById('notification-overlay');
-        const contentEl = document.getElementById('notification-content');
-        if (overlay && contentEl) {
-            contentEl.innerHTML = content;
-            overlay.hidden = false;
-        }
-
-        // Hide indicator
-        const indicator = document.getElementById('notification-indicator');
-        if (indicator) indicator.hidden = true;
-    });
+    function onToastClick(e) {
+        if (e.target.id === 'toast-close') return;
+        el.removeEventListener('click', onToastClick);
+        el.style.display = 'none';
+        openNotificationPage();
+    }
+    el.addEventListener('click', onToastClick);
 }
 
-function closeNotification() {
-    const overlay = document.getElementById('notification-overlay');
-    if (overlay) overlay.hidden = true;
+function openNotificationPage() {
+    window.open(NOTIFY_URL, '_blank');
+    if (_pendingNotificationHash) {
+        saveSetting('notification_hash', _pendingNotificationHash);
+        _pendingNotificationHash = null;
+    }
 }
 
 // =============================================================================
@@ -2447,6 +2437,28 @@ function dismissUpdateBanner() {
     if (banner) banner.hidden = true;
 }
 
+async function checkForUpdate() {
+    if (!('serviceWorker' in navigator)) {
+        showToast('このブラウザはService Workerに対応していません', 'warning');
+        return;
+    }
+    try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) {
+            showToast('最新バージョンです', 'success');
+            return;
+        }
+        if (reg.waiting) {
+            showUpdateBanner();
+            return;
+        }
+        await reg.update();
+        showToast('最新バージョンです', 'success');
+    } catch (err) {
+        showToast('更新の確認に失敗しました', 'error');
+    }
+}
+
 // =============================================================================
 // 18. Scroll Top
 // =============================================================================
@@ -2454,15 +2466,6 @@ function dismissUpdateBanner() {
 function setupScrollTop() {
     const scrollBtn = document.getElementById('scroll-top-btn');
     if (!scrollBtn) return;
-
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 300) {
-            scrollBtn.classList.add('visible');
-        } else {
-            scrollBtn.classList.remove('visible');
-        }
-    });
-
     scrollBtn.addEventListener('click', () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -2486,9 +2489,9 @@ function displayVersion() {
         buildTimeEl.textContent = 'Build: ' + appInfo.buildTime;
     }
 
-    const footerEl = document.getElementById('app-info');
-    if (footerEl) {
-        footerEl.textContent = (appInfo.name || 'Tana') + ' v' + (appInfo.version || '1.0.0');
+    const infoDisplay = document.getElementById('app-info-display');
+    if (infoDisplay) {
+        infoDisplay.textContent = 'Build: ' + (appInfo.buildTime || '---');
     }
 }
 
@@ -2497,6 +2500,8 @@ function displayVersion() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', async () => {
+    initToast();
+
     try {
         db = await openDB();
         window.db = db;
@@ -2577,6 +2582,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         productDetailCloseBtn.addEventListener('click', closeProductDetail);
     }
 
+    // Count history detail close
+    const countHistoryDetailCloseBtn = document.getElementById('close-count-history-detail');
+    if (countHistoryDetailCloseBtn) {
+        countHistoryDetailCloseBtn.addEventListener('click', () => {
+            const overlay = document.getElementById('count-history-detail-overlay');
+            if (overlay) overlay.hidden = true;
+        });
+    }
+
     // Transaction form listeners
     ['receive', 'use', 'sell'].forEach(type => {
         const saveBtn = document.getElementById('save-' + type + '-btn');
@@ -2605,9 +2619,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Settings listeners
-    const saveClinicBtn = document.getElementById('save-clinic-info-btn');
-    if (saveClinicBtn) {
-        saveClinicBtn.addEventListener('click', saveClinicInfo);
+    const saveBusinessBtn = document.getElementById('save-business-info-btn');
+    if (saveBusinessBtn) {
+        saveBusinessBtn.addEventListener('click', saveBusinessInfo);
     }
 
     const saveInventoryBtn = document.getElementById('save-inventory-settings-btn');
@@ -2615,19 +2629,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveInventoryBtn.addEventListener('click', saveInventorySettings);
     }
 
-    const notificationToggle = document.getElementById('notification-enabled');
-    if (notificationToggle) {
-        notificationToggle.addEventListener('change', saveNotificationSetting);
-    }
+    document.getElementById('btn-open-notification').addEventListener('click', openNotificationPage);
+    document.getElementById('setting-notify-enabled').addEventListener('change', (e) => {
+        saveSetting('notification_enabled', e.target.checked);
+    });
 
     const exportBtn = document.getElementById('export-data-btn');
     if (exportBtn) {
         exportBtn.addEventListener('click', exportData);
     }
 
-    const importBtn = document.getElementById('import-data-btn');
-    if (importBtn) {
-        importBtn.addEventListener('click', importData);
+    const importFile = document.getElementById('import-file');
+    if (importFile) {
+        importFile.addEventListener('change', importData);
     }
 
     const deleteAllBtn = document.getElementById('delete-all-btn');
@@ -2697,15 +2711,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateDismissBtn.addEventListener('click', dismissUpdateBanner);
     }
 
-    // Notification listeners
-    const notifIndicator = document.getElementById('notification-indicator');
-    if (notifIndicator) {
-        notifIndicator.addEventListener('click', showNotification);
-    }
-
-    const notifCloseBtn = document.getElementById('notification-close-btn');
-    if (notifCloseBtn) {
-        notifCloseBtn.addEventListener('click', closeNotification);
+    const checkUpdateBtn = document.getElementById('check-update-btn');
+    if (checkUpdateBtn) {
+        checkUpdateBtn.addEventListener('click', checkForUpdate);
     }
 
     // Report history filter listeners
@@ -2775,6 +2783,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Check notifications
     checkNotification();
+
+    // 初回判定: productsストアが空ならサンプルデータを自動ロード
+    const products = await dbGetAll('products');
+    if (products.length === 0) {
+        await autoLoadSampleData();
+    }
 
     // Signal that the app is fully initialized
     window.appReady = true;

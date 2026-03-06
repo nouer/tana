@@ -11,9 +11,9 @@
 ### テスト構成
 | 種別 | ファイル | テスト数 |
 |------|---------|---------|
-| ユニットテスト | tana.calc.test.js | 109件 |
-| E2Eテスト | e2e.test.js | 43件 |
-| **合計** | | **152件** |
+| ユニットテスト | tana.calc.test.js | 122件 |
+| E2Eテスト | e2e.test.js | 70件 |
+| **合計** | | **192件** |
 
 ### テストID体系
 - UT-XXX-NNN: ユニットテスト（XXX=カテゴリ、NNN=連番）
@@ -135,7 +135,8 @@
 | UT-IMP-005 | stock_transactionsが配列でない → invalid | valid=false, "stock_transactionsが配列ではありません" |
 | UT-IMP-006 | inventory_countsが配列でない → invalid | valid=false, "inventory_countsが配列ではありません" |
 | UT-IMP-007 | productにidがない → invalid | valid=false, "products[0]にidがありません" |
-| UT-IMP-008 | settingsがオブジェクトでない → invalid | valid=false, "settingsはオブジェクトである必要があります" |
+| UT-IMP-008 | settingsがオブジェクトでない → invalid | valid=false, "settingsはオブジェクトまたは配列である必要があります" |
+| UT-IMP-009 | settingsが配列形式 → valid（後方互換） | 配列形式のsettingsは有効（valid=true） |
 
 ### 1.8 商品コード生成 (UT-PC)
 
@@ -178,14 +179,31 @@
 
 | ID | テスト内容 | 期待結果 |
 |----|-----------|---------|
-| UT-RPT-001 | buildStockSummaryReport 商品あり | 商品数分のレポートデータを返す（productId, productName, currentStock等） |
+| UT-RPT-001 | buildStockSummaryReport 商品あり | products + transactions → productCode, minStock, status, currentStock 正しい |
 | UT-RPT-002 | buildStockSummaryReport カテゴリフィルタ | filterByCategory + buildStockSummaryReport → 指定カテゴリのみ |
-| UT-RPT-003 | buildTransactionReport 日付範囲フィルタ | startDate〜endDate範囲の取引のみ返す |
-| UT-RPT-004 | buildExpiryReport ステータス色分け | expired/okステータスを正しく付与 |
+| UT-RPT-003 | buildTransactionReport 日付範囲フィルタ | startDate〜endDate範囲の取引のみ返す（日付降順） |
+| UT-RPT-004 | buildExpiryReport ステータス色分け | transactions + products → expired/normalステータスを正しく付与 |
 | UT-RPT-005 | buildVarianceReport | 棚卸差異レポート生成（variance, summary含む） |
 | UT-RPT-006 | buildVarianceReport 空カウント → 空 | null入力 → countDate/status=null, items空配列, summary空オブジェクト |
+| UT-RPT-007 | buildStockSummaryReport ステータス判定 | 欠品(zero)/不足(low)/正常(normal)の3ステータスを正しく判定 |
+| UT-RPT-008 | buildStockSummaryReport 空配列 | 空products → 空配列 |
+| UT-RPT-009 | buildTransactionReport 商品IDフィルタ | productId指定 → 該当商品の取引のみ返す |
+| UT-RPT-010 | buildTransactionReport 取引種別フィルタ | transactionType指定 → 該当種別のみ返す |
+| UT-RPT-011 | buildTransactionReport dateFrom/dateToフィルタ | dateFrom〜dateTo範囲の取引のみ返す |
+| UT-RPT-012 | buildExpiryReport ロット別在庫集計 | 同一ロットの入庫・使用が正しく集計される |
+| UT-RPT-013 | buildExpiryReport 在庫0ロット除外 | 在庫が0になったロットは結果から除外 |
+| UT-RPT-014 | buildExpiryReport trackExpiry=false除外 | 期限管理対象外の商品は除外 |
 
-### 1.12 サンプルデータ整合性 (UT-SD)
+### 1.12 カテゴリラベル (UT-CAT)
+
+| ID | テスト内容 | 期待結果 |
+|----|-----------|---------|
+| UT-CAT-001 | "consumable" → "消耗品" | getCategoryLabel('consumable') → '消耗品' |
+| UT-CAT-002 | "retail" → "物販" | getCategoryLabel('retail') → '物販' |
+| UT-CAT-003 | 不明値 → そのまま返す | getCategoryLabel('unknown') → 'unknown' |
+| UT-CAT-004 | null/undefined → 空文字 | getCategoryLabel(null) → '' |
+
+### 1.14 サンプルデータ整合性 (UT-SD)
 
 | ID | テスト内容 | 期待結果 |
 |----|-----------|---------|
@@ -222,8 +240,10 @@
 |----|-----------|---------|
 | E2E-SET-001 | クリニック情報の保存とリロード後の永続性 | 入力した情報がIndexedDBに保存され、リロード後も保持 |
 | E2E-SET-002 | 在庫管理設定の保存 | 期限アラート日数(60日)が保存される |
-| E2E-SET-003 | 通知トグルの保存 | 通知ON/OFFがトグル可能で保存される |
+| E2E-SET-003 | 通知トグルの保存 | チェックボックス変更時に即座にIndexedDBに保存される |
 | E2E-SET-004 | アプリバージョンとビルド日時が表示される | #app-version, #app-build-timeが空でない |
+| E2E-SET-005 | アップデート確認ボタンがクリック可能でトーストが表示される | ボタンクリックでトーストが表示される（SW未対応環境では警告、未登録環境では「最新バージョンです」） |
+| E2E-SET-006 | お知らせボタンがクリック可能 | #btn-open-notificationクリックでwindow.openが呼ばれる |
 
 ### 2.4 商品管理 (E2E-PRD)
 
@@ -254,9 +274,12 @@
 | ID | テスト内容 | 期待結果 |
 |----|-----------|---------|
 | E2E-CNT-001 | 新規棚卸を開始 → 商品が表示される | status='in_progress'の棚卸レコードが作成される |
-| E2E-CNT-002 | テンキー入力 → カウント更新 | 実数値が設定され、numpadオーバーレイが存在する |
+| E2E-CNT-002 | テンキー入力 → カウント更新 | 全アイテムの実数値が設定され、numpadオーバーレイが存在する |
 | E2E-CNT-003 | 棚卸完了 → ステータスが "completed" | 全アイテムカウント後、status='completed'に更新・調整取引生成 |
 | E2E-CNT-004 | 棚卸差異レポートが利用可能 | 完了した棚卸が存在し、レポートセレクターに選択肢あり |
+| E2E-CNT-005 | 棚卸履歴ヘッダーが1つだけ表示される（二重表示バグ防止） | `#tab-inventory`内の「棚卸履歴」h3要素が1つだけ |
+| E2E-CNT-006 | 棚卸履歴に完了済み棚卸が表示される | 履歴アイテムが1件以上あり、ヘッダーも1つだけ |
+| E2E-CNT-007 | 棚卸履歴が空の場合にヘッダーが1つだけ表示される | ヘッダー1つと「履歴がありません」の空状態メッセージ |
 
 ### 2.7 ダッシュボード (E2E-DSH)
 
@@ -292,3 +315,30 @@
 | E2E-VAL-002 | 取引数量 0 で保存 → エラー | エラートーストが表示される |
 | E2E-VAL-003 | 無効な JSON のインポート → エラー | appName不正のデータ → valid=false, errorsあり |
 | E2E-VAL-004 | 不正な JAN コード → エラー | チェックディジット不正/桁数不正/英字含む → 全てvalid=false |
+
+### 2.11 UI品質ガード (E2E-QA)
+
+| ID | テスト内容 | 期待結果 |
+|----|-----------|---------|
+| E2E-QA-001 | ダッシュボードに undefined/NaN が表示されない | テキスト内容にundefined/NaNが含まれない |
+| E2E-QA-002 | 商品一覧に undefined/NaN が表示されない | 同上 |
+| E2E-QA-003 | 商品詳細に undefined/NaN が表示されない | 同上 |
+| E2E-QA-005 | 取引履歴に undefined/NaN が表示されない | 同上 |
+| E2E-QA-006 | 棚卸タブに undefined/NaN が表示されない | 同上 |
+| E2E-QA-007 | 在庫一覧レポートに undefined/NaN が表示されない | 同上 |
+| E2E-QA-008 | 入出庫履歴レポートに undefined/NaN が表示されない | 同上 |
+| E2E-QA-009 | 使用期限レポートに undefined/NaN が表示されない | 同上 |
+| E2E-QA-010 | 棚卸差異レポートに undefined/NaN が表示されない | 同上 |
+| E2E-QA-011 | 設定タブに undefined/NaN が表示されない | 同上 |
+| E2E-QA-012 | 商品一覧にカテゴリ内部値が漏出していない | consumable/retailが表示されない |
+| E2E-QA-013 | 商品詳細にカテゴリ内部値が漏出していない | 同上 |
+| E2E-QA-014 | 在庫一覧レポートにカテゴリ内部値が漏出していない | 同上 |
+| E2E-RPT-005 | 在庫一覧に最低在庫が数値で表示される | 各行のminStockセルが数値のみ |
+| E2E-RPT-006 | 在庫一覧のカテゴリが日本語で表示される | 「消耗品」「物販」のみ |
+| E2E-RPT-007 | 在庫一覧のステータスバッジに色が付いている | status-zero/low/normalクラスが適用 |
+| E2E-RPT-008 | 使用期限レポートにステータスバッジの色が付いている | expiry-*-badgeクラスが適用 |
+| E2E-CNT-008 | 棚卸履歴アイテムをクリック → 詳細オーバーレイ表示 | count-history-detail-overlayが表示される |
+| E2E-CNT-009 | 詳細オーバーレイに品目一覧が表示される | report-tableのtbody trが1行以上 |
+| E2E-CNT-010 | 未カウント品目がある状態で完了 → 確認ダイアログ表示 | showConfirmが2回呼ばれ、2回目のメッセージに「未カウントの商品」「理論在庫数」を含む |
+| E2E-CNT-011 | 確認ダイアログでキャンセル → 棚卸が完了しない | statusがin_progressのまま |
+| E2E-CNT-012 | 確認ダイアログで承認 → 理論在庫で補完され棚卸完了 | status=completed、全品目のactualQuantity=systemQuantity |

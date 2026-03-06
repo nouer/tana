@@ -7,7 +7,7 @@
             "productCode": "P-0001",
             "janCode": "4901001000012",
             "name": "セイリン鍼 J-15",
-            "nameKana": "",
+            "nameKana": "せいりんはり",
             "category": "consumable",
             "unit": "本",
             "defaultPrice": 25,
@@ -27,7 +27,7 @@
             "productCode": "P-0002",
             "janCode": "4901001000029",
             "name": "せんねん灸 太陽",
-            "nameKana": "",
+            "nameKana": "せんねんきゅう たいよう",
             "category": "consumable",
             "unit": "個",
             "defaultPrice": 50,
@@ -47,7 +47,7 @@
             "productCode": "P-0003",
             "janCode": "4901001000036",
             "name": "キネシオテーピング 50mm",
-            "nameKana": "",
+            "nameKana": "きねしおてーぴんぐ",
             "category": "consumable",
             "unit": "巻",
             "defaultPrice": 800,
@@ -67,7 +67,7 @@
             "productCode": "P-0004",
             "janCode": "4901001000043",
             "name": "アルコール綿",
-            "nameKana": "",
+            "nameKana": "あるこーるめん",
             "category": "consumable",
             "unit": "枚",
             "defaultPrice": 5,
@@ -167,7 +167,7 @@
             "productCode": "P-0009",
             "janCode": "4901001000081",
             "name": "グルコサミン＆コンドロイチン",
-            "nameKana": "",
+            "nameKana": "ぐるこさみん こんどろいちん",
             "category": "retail",
             "unit": "個",
             "defaultPrice": 3800,
@@ -187,7 +187,7 @@
             "productCode": "P-0010",
             "janCode": "4901001000098",
             "name": "ホエイプロテイン",
-            "nameKana": "",
+            "nameKana": "ほえいぷろていん",
             "category": "retail",
             "unit": "個",
             "defaultPrice": 4500,
@@ -633,6 +633,83 @@
             "expiryDate": "",
             "notes": "患者販売",
             "createdAt": "2025-12-29T14:00:00.000Z"
+        },
+        {
+            "id": "tx_031",
+            "productId": "prod_hari_001",
+            "transactionType": "adjust",
+            "quantity": -2,
+            "date": "2025-12-31",
+            "lotNumber": "",
+            "expiryDate": "",
+            "notes": "棚卸調整（差異 -2）",
+            "createdAt": "2025-12-31T17:10:00.000Z"
+        },
+        {
+            "id": "tx_032",
+            "productId": "prod_alco_004",
+            "transactionType": "adjust",
+            "quantity": -5,
+            "date": "2025-12-31",
+            "lotNumber": "",
+            "expiryDate": "",
+            "notes": "棚卸調整（差異 -5）",
+            "createdAt": "2025-12-31T17:11:00.000Z"
+        },
+        {
+            "id": "tx_033",
+            "productId": "prod_okyu_002",
+            "transactionType": "dispose",
+            "quantity": -10,
+            "date": "2026-01-10",
+            "lotNumber": "LOT-Q2025B",
+            "expiryDate": "",
+            "notes": "品質劣化のため廃棄",
+            "createdAt": "2026-01-10T10:00:00.000Z"
+        },
+        {
+            "id": "tx_034",
+            "productId": "prod_hari_001",
+            "transactionType": "receive",
+            "quantity": 300,
+            "date": "2026-01-15",
+            "lotNumber": "LOT-H2026A",
+            "expiryDate": "2026-04-15",
+            "notes": "期限間近ロット（値引入庫）",
+            "createdAt": "2026-01-15T10:00:00.000Z"
+        },
+        {
+            "id": "tx_035",
+            "productId": "prod_oil_007",
+            "transactionType": "receive",
+            "quantity": 3,
+            "date": "2026-01-20",
+            "lotNumber": "LOT-OIL2026B",
+            "expiryDate": "2026-04-30",
+            "notes": "追加入庫（期限短め）",
+            "createdAt": "2026-01-20T10:00:00.000Z"
+        },
+        {
+            "id": "tx_036",
+            "productId": "prod_hari_001",
+            "transactionType": "use",
+            "quantity": -100,
+            "date": "2026-01-31",
+            "lotNumber": "",
+            "expiryDate": "",
+            "notes": "1月使用分",
+            "createdAt": "2026-01-31T18:00:00.000Z"
+        },
+        {
+            "id": "tx_037",
+            "productId": "prod_glove_006",
+            "transactionType": "dispose",
+            "quantity": -8,
+            "date": "2026-01-25",
+            "lotNumber": "",
+            "expiryDate": "",
+            "notes": "破損品廃棄",
+            "createdAt": "2026-01-25T10:00:00.000Z"
         }
     ],
     "inventory_counts": [
@@ -779,27 +856,82 @@
                 }
             ],
             "createdAt": "2025-12-31T15:00:00.000Z"
+        },
+        {
+            "id": "count_002",
+            "countDate": "2026-01-31",
+            "status": "completed",
+            "completedAt": "2026-01-31T17:00:00.000Z",
+            "items": [
+                {
+                    "productId": "prod_hari_001",
+                    "productName": "セイリン鍼 J-15",
+                    "productCode": "P-0001",
+                    "unit": "本",
+                    "systemQuantity": 448,
+                    "actualQuantity": 445,
+                    "status": "counted"
+                },
+                {
+                    "productId": "prod_okyu_002",
+                    "productName": "せんねん灸 太陽",
+                    "productCode": "P-0002",
+                    "unit": "個",
+                    "systemQuantity": 110,
+                    "actualQuantity": 110,
+                    "status": "counted"
+                },
+                {
+                    "productId": "prod_tape_003",
+                    "productName": "キネシオテーピング 50mm",
+                    "productCode": "P-0003",
+                    "unit": "巻",
+                    "systemQuantity": 15,
+                    "actualQuantity": 14,
+                    "status": "counted"
+                },
+                {
+                    "productId": "prod_alco_004",
+                    "productName": "アルコール綿",
+                    "productCode": "P-0004",
+                    "unit": "枚",
+                    "systemQuantity": 245,
+                    "actualQuantity": 245,
+                    "status": "counted"
+                },
+                {
+                    "productId": "prod_glove_006",
+                    "productName": "ディスポ手袋 M",
+                    "productCode": "P-0006",
+                    "unit": "枚",
+                    "systemQuantity": 72,
+                    "actualQuantity": 70,
+                    "status": "counted"
+                },
+                {
+                    "productId": "prod_oil_007",
+                    "productName": "マッサージオイル",
+                    "productCode": "P-0007",
+                    "unit": "本",
+                    "systemQuantity": 5,
+                    "actualQuantity": 5,
+                    "status": "counted"
+                }
+            ],
+            "createdAt": "2026-01-31T15:00:00.000Z"
         }
     ],
-    "settings": [
-        {
-            "id": "clinic_info",
-            "value": {
-                "name": "さくら鍼灸整骨院",
-                "address": "東京都渋谷区神宮前1-2-3 さくらビル2F",
-                "phone": "03-1234-5678"
-            }
+    "settings": {
+        "business_info": {
+            "businessName": "サンプル事業者",
+            "contactName": "",
+            "address": "東京都渋谷区神宮前1-2-3 さくらビル2F",
+            "phone": "03-1234-5678"
         },
-        {
-            "id": "inventory_settings",
-            "value": {
-                "lowStockThreshold": 10,
-                "expiryWarningDays": 90
-            }
+        "inventory_settings": {
+            "lowStockThreshold": 10,
+            "expiryWarningDays": 90
         },
-        {
-            "id": "notification_enabled",
-            "value": true
-        }
-    ]
+        "notification_enabled": true
+    }
 }

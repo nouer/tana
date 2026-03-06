@@ -515,8 +515,8 @@ function validateImportData(data) {
         errors.push('inventory_countsが配列ではありません');
     }
     if (data.settings !== null && data.settings !== undefined) {
-        if (typeof data.settings !== 'object' || Array.isArray(data.settings)) {
-            errors.push('settingsはオブジェクトである必要があります');
+        if (typeof data.settings !== 'object') {
+            errors.push('settingsはオブジェクトまたは配列である必要があります');
         }
     }
     return { valid: errors.length === 0, errors: errors };
@@ -692,80 +692,124 @@ function filterByCategory(products, category) {
 /**
  * Build stock summary report.
  * @param {Array} products
- * @param {object} stockMap - { productId: currentStock }
- * @param {object} valueMap - { productId: stockValue }
+ * @param {Array} transactions
  * @returns {Array}
  */
-function buildStockSummaryReport(products, stockMap, valueMap) {
+function buildStockSummaryReport(products, transactions) {
     if (!Array.isArray(products)) return [];
-    stockMap = stockMap || {};
-    valueMap = valueMap || {};
+    var stockMap = {};
+    if (Array.isArray(transactions)) {
+        transactions.forEach(function(tx) {
+            if (!stockMap[tx.productId]) stockMap[tx.productId] = 0;
+            stockMap[tx.productId] += tx.quantity;
+        });
+    }
     return products.map(function (p) {
+        var currentStock = stockMap[p.id] !== undefined ? stockMap[p.id] : 0;
+        var minStock = Number(p.minStock) || 0;
         return {
             productId: p.id,
             productName: p.name,
-            productCode: p.code || '',
+            productCode: p.productCode || '',
             category: p.category,
-            currentStock: stockMap[p.id] !== undefined ? stockMap[p.id] : 0,
-            stockValue: valueMap[p.id] !== undefined ? valueMap[p.id] : 0,
-            unit: p.unit || ''
+            currentStock: currentStock,
+            minStock: minStock,
+            unit: p.unit || '',
+            status: currentStock <= 0 ? 'zero'
+                : currentStock <= minStock ? 'low' : 'normal'
         };
     });
 }
 
 /**
- * Filter transactions by dateRange and/or productId and/or type.
+ * Filter transactions and enrich with product info.
  * @param {Array} transactions
- * @param {object} filters - {startDate, endDate, productId, transactionType}
+ * @param {Array} products
+ * @param {object} filters - {startDate, endDate, dateFrom, dateTo, productId, transactionType}
  * @returns {Array}
  */
-function buildTransactionReport(transactions, filters) {
+function buildTransactionReport(transactions, products, filters) {
     if (!Array.isArray(transactions)) return [];
-    if (!filters) return transactions;
-    return transactions.filter(function (tx) {
-        if (filters.productId && tx.productId !== filters.productId) {
-            return false;
-        }
-        if (filters.transactionType && tx.transactionType !== filters.transactionType) {
-            return false;
-        }
-        if (filters.startDate && tx.date < filters.startDate) {
-            return false;
-        }
-        if (filters.endDate && tx.date > filters.endDate) {
-            return false;
-        }
+    var productMap = {};
+    if (Array.isArray(products)) {
+        products.forEach(function(p) { productMap[p.id] = p; });
+    }
+    filters = filters || {};
+    var startDate = filters.startDate || filters.dateFrom || '';
+    var endDate = filters.endDate || filters.dateTo || '';
+    var filtered = transactions.filter(function (tx) {
+        if (filters.productId && tx.productId !== filters.productId) return false;
+        if (filters.transactionType && tx.transactionType !== filters.transactionType) return false;
+        if (startDate && tx.date < startDate) return false;
+        if (endDate && tx.date > endDate) return false;
         return true;
+    });
+    filtered.sort(function(a, b) {
+        if (a.date !== b.date) return b.date < a.date ? -1 : b.date > a.date ? 1 : 0;
+        return ((b.createdAt || '') < (a.createdAt || '')) ? -1
+            : ((b.createdAt || '') > (a.createdAt || '')) ? 1 : 0;
+    });
+    return filtered.map(function(tx) {
+        var p = productMap[tx.productId];
+        return {
+            id: tx.id,
+            productId: tx.productId,
+            productName: p ? p.name : '(不明)',
+            productCode: p ? (p.productCode || '') : '',
+            transactionType: tx.transactionType,
+            quantity: tx.quantity,
+            date: tx.date,
+            lotNumber: tx.lotNumber || '',
+            expiryDate: tx.expiryDate || '',
+            notes: tx.notes || ''
+        };
     });
 }
 
 /**
- * Build expiry report from products and stock by lot map.
+ * Build expiry report from transactions and products.
+ * @param {Array} transactions
  * @param {Array} products
- * @param {object} stockByLotMap - { productId: [{lotNumber, expiryDate, quantity}] }
  * @returns {Array}
  */
-function buildExpiryReport(products, stockByLotMap) {
-    if (!Array.isArray(products) || !stockByLotMap) return [];
-    var now = new Date();
-    var result = [];
-    products.forEach(function (product) {
-        var lots = stockByLotMap[product.id];
-        if (!Array.isArray(lots)) return;
-        var alertDays = Number(product.expiryAlertDays) || 0;
-        lots.forEach(function (lot) {
-            var status = getExpiryStatus(lot.expiryDate, alertDays, now);
-            result.push({
-                productId: product.id,
-                productName: product.name,
-                lotNumber: lot.lotNumber,
-                expiryDate: lot.expiryDate,
-                quantity: lot.quantity,
-                status: status
-            });
-        });
+function buildExpiryReport(transactions, products) {
+    if (!Array.isArray(transactions) || !Array.isArray(products)) return [];
+    var expiryProducts = products.filter(function(p) { return p.trackExpiry; });
+    var productMap = {};
+    expiryProducts.forEach(function(p) { productMap[p.id] = p; });
+    // Build lot-level stock from transactions
+    var lotMap = {};
+    transactions.forEach(function(tx) {
+        if (!productMap[tx.productId] || !tx.lotNumber || !tx.expiryDate) return;
+        var key = tx.productId + '|' + tx.lotNumber;
+        if (!lotMap[key]) lotMap[key] = { productId: tx.productId, lotNumber: tx.lotNumber, expiryDate: tx.expiryDate, quantity: 0 };
+        lotMap[key].quantity += tx.quantity;
     });
-    return result;
+    var today = formatDate(new Date());
+    var lots = [];
+    var keys = Object.keys(lotMap);
+    for (var i = 0; i < keys.length; i++) {
+        lots.push(lotMap[keys[i]]);
+    }
+    return lots.filter(function(lot) {
+        return lot.quantity > 0;
+    }).map(function(lot) {
+        var p = productMap[lot.productId];
+        var daysUntil = Math.ceil((new Date(lot.expiryDate) - new Date(today)) / 86400000);
+        var alertDays = p ? (Number(p.expiryAlertDays) || 90) : 90;
+        var status = daysUntil <= 0 ? 'expired'
+            : daysUntil <= 30 ? 'critical'
+            : daysUntil <= alertDays ? 'warning' : 'normal';
+        return {
+            productId: lot.productId,
+            productName: p ? p.name : '',
+            lotNumber: lot.lotNumber,
+            expiryDate: lot.expiryDate,
+            quantity: lot.quantity,
+            daysUntil: daysUntil,
+            status: status
+        };
+    }).sort(function(a, b) { return a.daysUntil - b.daysUntil; });
 }
 
 /**
@@ -791,6 +835,20 @@ function buildVarianceReport(inventoryCount) {
             totalVarianceNegative: report.totalVarianceNegative
         }
     };
+}
+
+// ============================================================
+// 10. Category Label
+// ============================================================
+
+/**
+ * Convert category internal value to Japanese label.
+ * @param {string} category
+ * @returns {string}
+ */
+function getCategoryLabel(category) {
+    var labels = { consumable: '消耗品', retail: '物販' };
+    return labels[category] || category || '';
 }
 
 // ============================================================
@@ -824,7 +882,8 @@ if (typeof module !== 'undefined' && module.exports) {
         buildStockSummaryReport: buildStockSummaryReport,
         buildTransactionReport: buildTransactionReport,
         buildExpiryReport: buildExpiryReport,
-        buildVarianceReport: buildVarianceReport
+        buildVarianceReport: buildVarianceReport,
+        getCategoryLabel: getCategoryLabel
     };
 } else {
     window.TanaCalc = {
@@ -853,6 +912,7 @@ if (typeof module !== 'undefined' && module.exports) {
         buildStockSummaryReport: buildStockSummaryReport,
         buildTransactionReport: buildTransactionReport,
         buildExpiryReport: buildExpiryReport,
-        buildVarianceReport: buildVarianceReport
+        buildVarianceReport: buildVarianceReport,
+        getCategoryLabel: getCategoryLabel
     };
 }

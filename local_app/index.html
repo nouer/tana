@@ -14,18 +14,21 @@
 <body>
 
   <!-- Toast notification -->
-  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+  <div id="toast" class="toast" style="display:none">
+    <span id="toast-text"></span>
+    <button id="toast-close" class="toast-close">&times;</button>
+  </div>
 
   <!-- Scroll to top button -->
-  <button id="scroll-top-btn" class="scroll-top-btn" type="button" aria-label="ページ上部へ戻る" hidden>&uarr;</button>
+  <button id="scroll-top-btn" class="scroll-top-btn" type="button" aria-label="ページ上部へ戻る" title="トップへ戻る">▲</button>
 
   <!-- App info display -->
-  <div id="app-info" class="app-info"></div>
+  <div id="app-info-display" class="app-info-display no-print"></div>
 
   <!-- Header -->
   <header class="app-header">
     <h1>Tana - 在庫管理</h1>
-    <p class="subtitle">治療院・サロン向け在庫管理</p>
+    <p class="subtitle">小規模事業者向け在庫管理</p>
   </header>
 
   <!-- PWA update banner -->
@@ -399,16 +402,16 @@
     <section id="tab-settings" class="tab-content" hidden aria-labelledby="tab-settings-label">
       <h2 id="tab-settings-label" class="sr-only">設定</h2>
 
-      <!-- Clinic info -->
+      <!-- Business info -->
       <section class="card settings-section">
-        <h3>クリニック・サロン情報</h3>
+        <h3>事業者情報</h3>
         <div class="form-group">
-          <label for="clinic-name">店舗名</label>
-          <input type="text" id="clinic-name">
+          <label for="business-name">事業者名</label>
+          <input type="text" id="business-name">
         </div>
         <div class="form-group">
-          <label for="owner-name">オーナー名</label>
-          <input type="text" id="owner-name">
+          <label for="contact-name">担当者名</label>
+          <input type="text" id="contact-name">
         </div>
         <div class="form-group">
           <label for="zip-code">郵便番号</label>
@@ -422,7 +425,7 @@
           <label for="phone">電話番号</label>
           <input type="tel" id="phone">
         </div>
-        <button type="button" id="save-clinic-info-btn" class="primary-btn">クリニック情報を保存</button>
+        <button type="button" id="save-business-info-btn" class="primary-btn">事業者情報を保存</button>
       </section>
 
       <!-- Inventory settings -->
@@ -453,13 +456,13 @@
       <section class="card settings-section">
         <h3>データ管理</h3>
         <div class="data-actions">
-          <button type="button" id="export-data-btn" class="secondary-btn">データをエクスポート</button>
-          <div class="form-group">
-            <label for="import-file">インポートファイル</label>
-            <input type="file" id="import-file" accept=".json">
-          </div>
-          <button type="button" id="import-data-btn" class="secondary-btn">データをインポート</button>
-          <button type="button" id="delete-all-btn" class="danger-btn">すべてのデータを削除</button>
+          <button type="button" id="export-data-btn" class="secondary-btn">エクスポート</button>
+          <label class="secondary-btn import-label">
+            インポート
+            <input type="file" id="import-file" accept=".json" style="display:none">
+          </label>
+          <hr>
+          <button type="button" id="delete-all-btn" class="danger-btn btn-sm">すべてのデータを削除</button>
         </div>
       </section>
 
@@ -472,14 +475,13 @@
 
       <!-- Notification settings -->
       <section class="card settings-section">
-        <h3>通知設定</h3>
-        <div class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" id="notification-enabled">
-            通知を有効にする
-          </label>
-        </div>
-        <button type="button" id="save-notification-btn" class="primary-btn">通知設定を保存</button>
+        <h3>お知らせ</h3>
+        <p class="form-hint" style="margin-bottom: 8px;">開発元からのお知らせを確認できます。</p>
+        <label class="checkbox-label">
+          <input type="checkbox" id="setting-notify-enabled" checked>
+          お知らせを通知する
+        </label>
+        <button type="button" class="secondary-btn" id="btn-open-notification" style="margin-top: 8px;">お知らせを見る</button>
       </section>
 
       <!-- App info -->
@@ -672,7 +674,23 @@
           <button type="button" id="numpad-confirm-btn" class="numpad-btn numpad-confirm" data-numpad="confirm">確定</button>
         </div>
         <button type="button" id="numpad-cancel-btn" class="cancel-btn secondary-btn numpad-cancel">キャンセル</button>
-        <button type="button" class="cancel-btn secondary-btn numpad-cancel">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Count history detail overlay -->
+  <div id="count-history-detail-overlay" class="overlay" hidden>
+    <div class="overlay-content">
+      <header class="overlay-header">
+        <h2 class="overlay-title">棚卸詳細</h2>
+        <button type="button" class="overlay-close-btn" aria-label="閉じる">&times;</button>
+      </header>
+      <div class="overlay-body">
+        <div id="count-history-detail-summary" class="count-detail-summary"></div>
+        <div id="count-history-detail-items" class="count-detail-items"></div>
+        <div class="overlay-actions">
+          <button type="button" id="close-count-history-detail" class="cancel-btn secondary-btn">閉じる</button>
+        </div>
       </div>
     </div>
   </div>

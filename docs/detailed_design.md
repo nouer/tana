@@ -86,26 +86,30 @@
 
 | 項目 | 仕様 |
 |------|------|
-| 要素ID | `toast` |
-| 位置 | `position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%)` |
-| z-index | 1100 |
-| 形状 | ピル型（`border-radius: 24px`） |
-| パディング | 12px 24px |
-| フォント | 14px、font-weight: 500 |
-| 影 | `0 4px 12px rgba(0, 0, 0, 0.15)` |
-| 最大幅 | `calc(100vw - 32px)` |
-| デフォルト表示時間 | 3000ms |
-| アニメーション | `transform` + `opacity` の0.3sトランジション |
+| 要素ID | `toast`（テキスト: `toast-text`、閉じるボタン: `toast-close`） |
+| 位置 | `position: fixed; top: 16px; left: 50%; transform: translateX(-50%)` |
+| z-index | 10000 |
+| 形状 | 角丸（`border-radius: 8px`） |
+| パディング | 12px 40px 12px 16px |
+| フォント | 0.95em |
+| 影 | `0 4px 12px rgba(0,0,0,0.15)` |
+| 最大幅 | `90vw`、最小幅: `280px` |
+| 表示制御 | `display: block/none` |
+| 閉じるボタン | `×` ボタン（toast-close）でいつでも閉じ可能 |
+| アニメーション | `toast-in` keyframes（0.3s ease） |
 
 3種類のスタイル:
 
-| クラス | 背景色 | 用途 |
-|--------|--------|------|
-| `toast-success` | `var(--success)`（`#10b981`） | 操作成功 |
-| `toast-error` | `var(--danger)`（`#dc2626`） | エラー |
-| `toast-info` | `#3b82f6`（ブルー） | 情報通知 |
+| クラス | 背景色 | 自動消去 | 用途 |
+|--------|--------|----------|------|
+| `success` | `var(--success-bg)` / `var(--success)` | 3秒後 | 操作成功 |
+| `error` | `var(--danger-bg)` / `var(--danger)` | しない | エラー |
+| `info` | `#eff6ff` / `#1e40af` | しない | 情報通知 |
 
-関数シグネチャ: `showToast(message, type = 'info', duration = 3000)`
+関数シグネチャ: `showToast(text, type)`
+- `error`/`info` は自動消去せず、×ボタンで閉じる
+- `success` は3秒後に自動消去
+- クリック可能トースト: `.toast.clickable` クラスで通知用に使用
 
 ### 1.6 スキャンFAB
 
@@ -174,7 +178,7 @@
 |--------|---------|------|
 | `startNewCount()` | 新規棚卸セッション作成 | 全アクティブ商品をアイテムとして登録。status: `in_progress` |
 | `confirmNumpad()` | 実数入力の確定 | 該当アイテムの `actualQuantity` と `status = 'counted'` を更新 |
-| `completeCount()` | 棚卸完了処理 | 差異のある商品に `adjust` 取引を自動生成。status: `completed` に更新 |
+| `completeCount()` | 棚卸完了処理 | 未カウント品目がある場合は確認ダイアログで理論在庫の自動補完を提案。差異のある商品に `adjust` 取引を自動生成。status: `completed` に更新 |
 | `cancelCount()` | 棚卸中止 | `dbDelete` で棚卸レコードを物理削除 |
 
 ### 2.6 設定操作
@@ -183,9 +187,9 @@
 |--------|---------|------|
 | `getSetting(key)` | 設定値の取得 | `dbGet('app_settings', key)` → `record.value` を返却。存在しない場合は `null` |
 | `saveSetting(key, value)` | 設定値の保存 | `dbUpdate('app_settings', { id: key, value: value })` |
-| `saveClinicInfo()` | 施設情報の保存 | キー: `clinic_info`、値: オブジェクト |
+| `saveBusinessInfo()` | 事業者情報の保存 | キー: `business_info`、値: オブジェクト |
 | `saveInventorySettings()` | 在庫管理設定の保存 | キー: `inventory_settings`、値: オブジェクト |
-| `saveNotificationSetting()` | 通知設定の保存 | キー: `notification_enabled`、値: boolean |
+| (インライン) | 通知設定の保存 | `setting-notify-enabled` の `change` イベントで `saveSetting('notification_enabled', checked)` を直接呼び出し |
 
 ---
 
@@ -256,7 +260,7 @@
 | products[N].id | 各要素にidプロパティがあること | 「products[N]にidがありません」 |
 | stock_transactions | 配列であること | 「stock_transactionsが配列ではありません」 |
 | inventory_counts | 配列であること | 「inventory_countsが配列ではありません」 |
-| settings | null/undefinedの場合はスキップ。それ以外はオブジェクト型（配列不可）であること | 「settingsはオブジェクトである必要があります」 |
+| settings | null/undefinedの場合はスキップ。それ以外はオブジェクト型（配列またはオブジェクト）であること | 「settingsはオブジェクトまたは配列である必要があります」 |
 
 ### 3.5 UI操作バリデーション
 
@@ -268,8 +272,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | 取引保存時の数量入力 | NaN または 0以下 | 「数量を正しく入力してください」 | トースト（error） |
 | テンキー確定時 | NaN または 負数 | 「正しい数量を入力してください」 | トースト（error） |
 | 商品コード重複 | IndexedDB ConstraintError | 「その商品コードは既に使用されています」 | トースト（error） |
-| インポート時のファイル選択 | ファイル未選択 | 「ファイルを選択してください」 | トースト（error） |
-| 棚卸完了時の未カウント | `status !== 'counted'` の商品が存在 | 「未カウントの商品があります（N 件）」 | トースト（error） |
+| 棚卸完了時の未カウント | `status !== 'counted'` の商品が存在 | 「未カウントの商品が N 件あります。\n理論在庫数で棚卸しますか？」 | 確認ダイアログ（OK→理論在庫で自動補完、キャンセル→中断） |
 | use/sell時の在庫マイナス | 現在庫 + 数量 < 0 | 「在庫がマイナスになります（現在: N）。続行しますか？」 | 確認ダイアログ |
 
 ---
@@ -334,16 +337,27 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | 写真 | 大サイズ画像表示（最大幅: 300px） |
 | 商品名 | h2見出し |
 | フリガナ | 商品名の下にテキスト表示 |
-| 在庫数 | `stock-badge` クラスで色分け表示（stock-normal/stock-low/stock-zero） |
-| 詳細テーブル | 商品コード、JANコード、カテゴリ、単位、最低在庫数、仕入先、単価、期限管理、備考 |
+| 在庫数 | `stock-badge` クラスで色分け表示（stock-ok/stock-low/stock-out） |
+| 詳細テーブル | 商品コード、JANコード、カテゴリ（日本語表示）、単位、最低在庫数、仕入先、単価、期限管理、備考 |
+
+**カテゴリ表示ルール:**
+
+カテゴリの内部値（`consumable`, `retail`）はユーザーには表示しない。`TanaCalc.getCategoryLabel()` で日本語ラベルに変換する:
+
+| 内部値 | 表示ラベル |
+|--------|-----------|
+| `consumable` | 消耗品 |
+| `retail` | 物販 |
+
+対象箇所: 商品カード、商品詳細、在庫一覧レポート
 
 **在庫バッジの色分け:**
 
 | 条件 | クラス | 表示色 |
 |------|--------|--------|
-| 在庫 > 最低在庫数 | stock-normal | 通常色 |
+| 在庫 > 最低在庫数 | stock-ok | 正常色（`var(--success)` / `#10b981`） |
 | 0 < 在庫 <= 最低在庫数 | stock-low | 警告色（`var(--warning)` / `#f59e0b`） |
-| 在庫 <= 0 | stock-zero | 危険色（`var(--danger)` / `#dc2626`） |
+| 在庫 <= 0 | stock-out | 危険色（`var(--danger)` / `#dc2626`） |
 
 **ボタン:**
 - 「編集」: `primary-btn` → 商品フォームオーバーレイを開く
@@ -460,6 +474,41 @@ script.js 内のUI操作時に行われる追加バリデーション:
 
 ---
 
+## 6b. 棚卸履歴詳細オーバーレイ
+
+| 項目 | 仕様 |
+|------|------|
+| 要素ID | `count-history-detail-overlay` |
+| タイトル | 「棚卸詳細」 |
+| アニメーション | product-detail-overlay パターン踏襲 |
+
+**表示内容:**
+
+サマリー部（`#count-history-detail-summary`）:
+
+| 項目 | 表示形式 |
+|------|---------|
+| 棚卸日 | countDate |
+| 完了日時 | completedAt を `toLocaleString('ja-JP')` |
+| 品目数 | items.length |
+| 差異あり | variance !== 0 の件数 |
+
+品目一覧テーブル（`#count-history-detail-items`）:
+
+| 列 | 内容 |
+|----|------|
+| 商品名 | item.productName |
+| 理論在庫 | item.systemQuantity |
+| 実数 | item.actualQuantity |
+| 差異 | actualQuantity - systemQuantity（差異がある行は `variance-diff` クラス） |
+
+**操作:**
+- 棚卸履歴の各アイテム（`.count-history-item`）をクリックでオーバーレイを表示
+- `cursor: pointer` + ホバーエフェクト（`var(--primary-bg)` 背景）
+- 閉じるボタン（`#close-count-history-detail`）でオーバーレイを閉じる
+
+---
+
 ## 7. テンキーオーバーレイ詳細
 
 | 項目 | 仕様 |
@@ -531,18 +580,19 @@ script.js 内のUI操作時に行われる追加バリデーション:
 
 ## 9. 設定画面詳細
 
-### 9.1 クリニック・サロン情報
+### 9.1 事業者情報
 
 | フィールドID | ラベル | type | 備考 |
 |-------------|--------|------|------|
-| clinic-name | 店舗名 | text | - |
-| owner-name | オーナー名 | text | - |
+| business-name | 事業者名 | text | - |
+| contact-name | 担当者名 | text | - |
 | zip-code | 郵便番号 | tel | placeholder: 「000-0000」 |
 | address | 住所 | text | - |
 | phone | 電話番号 | tel | - |
 
-- 保存先: `app_settings` ストア、キー: `clinic_info`
-- 「クリニック情報を保存」ボタンで一括保存
+- 保存先: `app_settings` ストア、キー: `business_info`
+- 「事業者情報を保存」ボタンで一括保存
+- 旧キー `clinic_info` からの自動マイグレーションあり
 
 ### 9.2 在庫管理設定
 
@@ -555,15 +605,17 @@ script.js 内のUI操作時に行われる追加バリデーション:
 - 保存先: `app_settings` ストア、キー: `inventory_settings`
 - 「在庫管理設定を保存」ボタンで一括保存
 
-### 9.3 通知設定
+### 9.3 お知らせ
 
 | フィールドID | ラベル | type | 備考 |
 |-------------|--------|------|------|
-| notification-enabled | 通知を有効にする | checkbox | - |
+| setting-notify-enabled | お知らせを通知する | checkbox | changeイベントで即保存 |
+| btn-open-notification | お知らせを見る | button | notify.htmlを新タブで開く |
 
 - 保存先: `app_settings` ストア、キー: `notification_enabled`
-- 「通知設定を保存」ボタンで保存
-- 通知チェック: アプリ起動時に `notify.html` を取得し、SHA-256ハッシュの変更を検出
+- チェックボックスの`change`イベントで即座に保存（保存ボタンなし）
+- 通知チェック: アプリ起動時に `notify.html` を `no-store` キャッシュで取得し、SHA-256ハッシュの変更を検出
+- 新しいお知らせ検出時: クリック可能なトースト通知を表示 → タップで `notify.html` を新タブで開く → ハッシュを保存
 
 ### 9.4 データ管理
 
@@ -571,41 +623,47 @@ script.js 内のUI操作時に行われる追加バリデーション:
 
 | 項目 | 仕様 |
 |------|------|
-| ボタン | 「データをエクスポート」（`secondary-btn`） |
+| ボタン | 「エクスポート」（`secondary-btn`） |
 | ファイル名 | `tana_export_YYYYMMDD_HHMMSS.json` |
 | ファイル形式 | JSON（インデント: 2スペース） |
 | MIME type | `application/json` |
+| トースト | カウント付き（例: 「15件の商品、20件の取引、3件の棚卸をエクスポートしました」） |
 
 エクスポートJSONの構造:
 ```json
 {
+  "exportedAt": "ISO 8601形式",
   "appName": "tana",
   "version": "1.0.0",
-  "exportDate": "ISO 8601形式",
   "products": [...],
   "stock_transactions": [...],
   "inventory_counts": [...],
-  "settings": [...]
+  "settings": {
+    "business_info": {...},
+    "inventory_settings": {...}
+  }
 }
 ```
 
+- settings はオブジェクト形式（キー: 設定名、値: 設定値）
 - エクスポート後、`last_export_time` 設定を更新
 
 #### インポート
 
 | 項目 | 仕様 |
 |------|------|
-| ファイル入力 | `<input type="file" accept=".json">` |
-| ボタン | 「データをインポート」（`secondary-btn`） |
+| UI | `<label>` でボタン風表示、内部に `<input type="file">` を非表示で内包 |
+| トリガー | ファイル選択時（`change` イベント）に自動実行 |
 | バリデーション | `validateImportData()` による構造検証 |
-| 確認 | インポート件数を表示して確認ダイアログ |
-| マージ方式 | 同一IDのデータは上書き（`dbUpdate`）。新規データは追加（`dbAdd`） |
+| 確認 | インポート件数（商品・取引・棚卸・設定）を表示して確認ダイアログ |
+| マージ方式 | 同一IDのデータは上書き（`dbUpdate`） |
+| settings互換 | オブジェクト形式（新）と配列形式（旧）の両方に対応 |
 
 #### 全データ削除
 
 | 項目 | 仕様 |
 |------|------|
-| ボタン | 「すべてのデータを削除」（`danger-btn`） |
+| ボタン | 「すべてのデータを削除」（`danger-btn btn-sm`） |
 | 確認1 | 「全てのデータを削除しますか？この操作は取り消せません。」 |
 | 確認2 | テキスト入力で「削除」と入力を要求 |
 | 処理 | 4つの全ストア（products、stock_transactions、inventory_counts、app_settings）を `dbClear` |
@@ -616,8 +674,18 @@ script.js 内のUI操作時に行われる追加バリデーション:
 |------|------|
 | ボタン | 「サンプルデータを読み込む」（`secondary-btn`） |
 | データソース | `sample_data.json`（fetch API で取得） |
-| 確認 | 「サンプルデータを読み込みますか？既存データはそのまま保持されます。」 |
-| マージ方式 | 同一IDは上書き、新規は追加 |
+| 確認 | 「サンプルデータをインポートします。既存データとマージされ、重複するIDは自動的にスキップされます。」 |
+| マージ方式 | 重複IDはスキップ、新規のみ追加 |
+| トースト | カウント付き（例: 「インポート完了: 商品15件、取引20件、棚卸3件」） |
+
+#### 初回サンプルデータ自動ロード
+
+| 項目 | 仕様 |
+|------|------|
+| トリガー | アプリ起動時に `products` ストアが空の場合 |
+| 処理 | `autoLoadSampleData()` で `sample_data.json` を自動読み込み |
+| マージ方式 | 重複IDはスキップ |
+| トースト | info トースト（×ボタンで閉じるまで表示）: 「サンプルデータを読み込みました。ご自身のデータで始める場合は、設定タブの「全データ削除」からリセットできます。」 |
 
 ### 9.5 アプリ情報
 

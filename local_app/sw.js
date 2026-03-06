@@ -3,7 +3,7 @@
  * アセットキャッシュによる完全オフライン対応
  */
 
-const CACHE_NAME = 'tana-v1.0.0-1772711525';
+const CACHE_NAME = 'tana-v1.0.0-1772759054';
 
 const PRECACHE_ASSETS = [
     '/',

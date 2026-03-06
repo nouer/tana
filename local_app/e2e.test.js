@@ -170,11 +170,11 @@ describeE2E('Tana E2E Tests', () => {
             await page.waitForFunction(
                 () => {
                     const toast = document.getElementById('toast');
-                    return toast && toast.classList.contains('toast-show');
+                    return toast && toast.style.display === 'block';
                 },
                 { timeout }
             );
-            const text = await page.$eval('#toast', el => el.textContent);
+            const text = await page.$eval('#toast-text', el => el.textContent);
             return text;
         } catch (e) {
             return null;
@@ -187,7 +187,7 @@ describeE2E('Tana E2E Tests', () => {
             await page.waitForFunction(
                 () => {
                     const toast = document.getElementById('toast');
-                    return !toast || !toast.classList.contains('toast-show');
+                    return !toast || toast.style.display === 'none' || toast.style.display === '';
                 },
                 { timeout: 5000 }
             );
@@ -235,8 +235,14 @@ describeE2E('Tana E2E Tests', () => {
                 }
             }
             if (data.settings) {
-                for (const s of data.settings) {
-                    await dbUpdate('app_settings', s);
+                if (Array.isArray(data.settings)) {
+                    for (const s of data.settings) {
+                        await dbUpdate('app_settings', s);
+                    }
+                } else {
+                    for (const [key, value] of Object.entries(data.settings)) {
+                        await saveSetting(key, value);
+                    }
                 }
             }
         });
@@ -448,14 +454,14 @@ describeE2E('Tana E2E Tests', () => {
             await reloadPage();
         });
 
-        test('E2E-SET-001: クリニック情報の保存とリロード後の永続性', async () => {
+        test('E2E-SET-001: 事業者情報の保存とリロード後の永続性', async () => {
             await switchToTab('settings');
 
             // フィールドに入力
-            await page.$eval('#clinic-name', el => el.value = '');
-            await page.type('#clinic-name', 'テスト治療院');
-            await page.$eval('#owner-name', el => el.value = '');
-            await page.type('#owner-name', '田中太郎');
+            await page.$eval('#business-name', el => el.value = '');
+            await page.type('#business-name', 'テスト事業者');
+            await page.$eval('#contact-name', el => el.value = '');
+            await page.type('#contact-name', '田中太郎');
             await page.$eval('#zip-code', el => el.value = '');
             await page.type('#zip-code', '100-0001');
             await page.$eval('#address', el => el.value = '');
@@ -464,7 +470,7 @@ describeE2E('Tana E2E Tests', () => {
             await page.type('#phone', '03-0000-0000');
 
             // 保存ボタンクリック
-            await page.click('#save-clinic-info-btn');
+            await page.click('#save-business-info-btn');
             const toast = await waitForToast();
             expect(toast).toBeTruthy();
 
@@ -476,7 +482,7 @@ describeE2E('Tana E2E Tests', () => {
 
             // 保存された値を検証（loadSettings がどのIDにマッピングするか依存）
             const savedName = await page.evaluate(async () => {
-                const info = await getSetting('clinic_info');
+                const info = await getSetting('business_info');
                 return info;
             });
             expect(savedName).toBeTruthy();
@@ -496,12 +502,20 @@ describeE2E('Tana E2E Tests', () => {
         test('E2E-SET-003: 通知トグルの保存', async () => {
             await switchToTab('settings');
 
-            const checkbox = await page.$('#notification-enabled');
+            const checkbox = await page.$('#setting-notify-enabled');
             if (checkbox) {
-                await page.click('#notification-enabled');
-                await page.click('#save-notification-btn');
-                const toast = await waitForToast();
-                expect(toast).toBeTruthy();
+                await page.click('#setting-notify-enabled');
+                // change イベントで即保存されるため、IndexedDB に反映されているか確認
+                const saved = await page.evaluate(async () => {
+                    const tx = window.db.transaction('app_settings', 'readonly');
+                    const store = tx.objectStore('app_settings');
+                    return new Promise(resolve => {
+                        const req = store.get('notification_enabled');
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => resolve(null);
+                    });
+                });
+                expect(saved).toBeTruthy();
             }
         });
 
@@ -513,6 +527,47 @@ describeE2E('Tana E2E Tests', () => {
 
             const buildTime = await page.$eval('#app-build-time', el => el.textContent);
             expect(buildTime).toBeTruthy();
+        });
+
+        test('E2E-SET-005: アップデート確認ボタンがクリック可能でトーストが表示される', async () => {
+            await switchToTab('settings');
+
+            const btn = await page.$('#check-update-btn');
+            expect(btn).not.toBeNull();
+
+            await page.click('#check-update-btn');
+            const toast = await waitForToast();
+            // E2E環境ではSW未対応の場合とSW未登録の場合がある
+            expect(
+                toast.includes('最新バージョンです') ||
+                toast.includes('Service Worker')
+            ).toBe(true);
+        });
+
+        test('E2E-SET-006: お知らせボタンがクリック可能', async () => {
+            await switchToTab('settings');
+
+            const btn = await page.$('#btn-open-notification');
+            expect(btn).not.toBeNull();
+
+            // window.openをスパイしてクリック検証
+            await page.evaluate(() => {
+                window._openCalled = false;
+                window._originalOpen = window.open;
+                window.open = function() { window._openCalled = true; };
+            });
+
+            await page.click('#btn-open-notification');
+
+            const openCalled = await page.evaluate(() => window._openCalled);
+            expect(openCalled).toBe(true);
+
+            // 元に戻す
+            await page.evaluate(() => {
+                window.open = window._originalOpen;
+                delete window._openCalled;
+                delete window._originalOpen;
+            });
         });
     });
 
@@ -994,11 +1049,11 @@ describeE2E('Tana E2E Tests', () => {
                 const active = counts.find(c => c.status === 'in_progress');
                 if (!active || !active.items || active.items.length === 0) return false;
 
-                // numpad を経由せず直接カウント値を設定
-                active.items[0].actualQuantity = 18;
-                active.items[0].status = 'counted';
-                active.items[1].actualQuantity = 10;
-                active.items[1].status = 'counted';
+                // numpad を経由せず直接カウント値を設定（全アイテム）
+                for (const item of active.items) {
+                    item.actualQuantity = item.systemQuantity;
+                    item.status = 'counted';
+                }
                 await dbUpdate('inventory_counts', active);
                 return true;
             });
@@ -1007,6 +1062,53 @@ describeE2E('Tana E2E Tests', () => {
             // numpad overlay の確認（UI テスト）
             const numpadExists = await page.$('#numpad-overlay');
             expect(numpadExists).not.toBeNull();
+        });
+
+        test('E2E-CNT-007: 棚卸履歴が空の場合にヘッダーが1つだけ表示される', async () => {
+            // 全データクリアして空の状態にする
+            await page.evaluate(async () => {
+                const stores = ['inventory_counts'];
+                for (const store of stores) {
+                    const tx = db.transaction(store, 'readwrite');
+                    tx.objectStore(store).clear();
+                    await new Promise((resolve, reject) => {
+                        tx.oncomplete = resolve;
+                        tx.onerror = reject;
+                    });
+                }
+            });
+            await switchToTab('dashboard');
+            await switchToTab('inventory');
+            await sleep(500);
+
+            const historyHeaderCount = await page.$$eval(
+                '#tab-inventory h3',
+                els => els.filter(el => el.textContent.includes('棚卸履歴')).length
+            );
+            expect(historyHeaderCount).toBe(1);
+
+            // 空状態メッセージが表示される
+            const emptyState = await page.$eval(
+                '#count-history-list .empty-state',
+                el => el.textContent
+            );
+            expect(emptyState).toContain('履歴がありません');
+
+            // テスト後に棚卸データを再セットアップ（後続テスト用）
+            await page.click('#start-count-btn');
+            await sleep(1000);
+            // カウント値を設定
+            await page.evaluate(async () => {
+                const counts = await dbGetAll('inventory_counts');
+                const active = counts.find(c => c.status === 'in_progress');
+                if (active && active.items) {
+                    for (const item of active.items) {
+                        item.actualQuantity = item.systemQuantity;
+                        item.status = 'counted';
+                    }
+                    await dbUpdate('inventory_counts', active);
+                }
+            });
         });
 
         test('E2E-CNT-003: 棚卸完了 → ステータスが "completed"', async () => {
@@ -1053,6 +1155,36 @@ describeE2E('Tana E2E Tests', () => {
                 return latest ? latest.status : null;
             });
             expect(status).toBe('completed');
+        });
+
+        test('E2E-CNT-005: 棚卸履歴ヘッダーが1つだけ表示される（二重表示バグ防止）', async () => {
+            await switchToTab('inventory');
+            await sleep(500);
+
+            const historyHeaderCount = await page.$$eval(
+                '#tab-inventory h3',
+                els => els.filter(el => el.textContent.includes('棚卸履歴')).length
+            );
+            expect(historyHeaderCount).toBe(1);
+        });
+
+        test('E2E-CNT-006: 棚卸履歴に完了済み棚卸が表示される', async () => {
+            await switchToTab('inventory');
+            await sleep(500);
+
+            // 完了した棚卸が存在するはず（E2E-CNT-003 で完了済み）
+            const historyItems = await page.$$eval(
+                '#count-history-list .count-history-item',
+                els => els.length
+            );
+            expect(historyItems).toBeGreaterThan(0);
+
+            // ヘッダーは依然1つだけ
+            const historyHeaderCount = await page.$$eval(
+                '#tab-inventory h3',
+                els => els.filter(el => el.textContent.includes('棚卸履歴')).length
+            );
+            expect(historyHeaderCount).toBe(1);
         });
 
         test('E2E-CNT-004: 棚卸差異レポートが利用可能', async () => {
@@ -1339,12 +1471,17 @@ describeE2E('Tana E2E Tests', () => {
         });
 
         test('E2E-DM-003: エクスポート → 全削除 → インポート → データ復元', async () => {
-            // 現在のデータをエクスポート（メモリ上に保持）
+            // 現在のデータをエクスポート（メモリ上に保持、オブジェクト形式settings）
             const exportedData = await page.evaluate(async () => {
                 const products = await dbGetAll('products');
                 const transactions = await dbGetAll('stock_transactions');
                 const counts = await dbGetAll('inventory_counts');
-                const settings = await dbGetAll('app_settings');
+                const settingKeys = ['business_info', 'inventory_settings', 'notification_enabled'];
+                const settings = {};
+                for (const key of settingKeys) {
+                    const val = await getSetting(key);
+                    if (val !== null) settings[key] = val;
+                }
                 return {
                     appName: 'tana',
                     version: '1.0.0',
@@ -1364,7 +1501,7 @@ describeE2E('Tana E2E Tests', () => {
             const afterDelete = await getProductCount();
             expect(afterDelete).toBe(0);
 
-            // インポート（JS で直接処理）
+            // インポート（JS で直接処理、オブジェクト形式settings対応）
             await page.evaluate(async (data) => {
                 if (data.products) {
                     for (const p of data.products) {
@@ -1382,8 +1519,14 @@ describeE2E('Tana E2E Tests', () => {
                     }
                 }
                 if (data.settings) {
-                    for (const s of data.settings) {
-                        await dbUpdate('app_settings', s);
+                    if (Array.isArray(data.settings)) {
+                        for (const s of data.settings) {
+                            await dbUpdate('app_settings', s);
+                        }
+                    } else {
+                        for (const [key, value] of Object.entries(data.settings)) {
+                            await saveSetting(key, value);
+                        }
                     }
                 }
             }, exportedData);
@@ -1538,6 +1681,287 @@ describeE2E('Tana E2E Tests', () => {
             expect(result.invalidCheckDigit.valid).toBe(false);
             expect(result.wrongLength.valid).toBe(false);
             expect(result.hasAlpha.valid).toBe(false);
+        });
+    });
+
+    // =========================================================================
+    // 11. UI品質ガード
+    // =========================================================================
+    describe('11. UI品質ガード', () => {
+        beforeAll(async () => {
+            await reloadPage();
+            await loadSampleDataViaJS();
+            await reloadPage();
+        });
+
+        // --- 11a. undefined/NaN/null 表示ガード ---
+        test('E2E-QA-001: ダッシュボードに undefined/NaN/null が表示されない', async () => {
+            await switchToTab('dashboard');
+            const text = await page.$eval('#tab-dashboard', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-002: 商品一覧に undefined/NaN/null が表示されない', async () => {
+            await switchToTab('products');
+            const text = await page.$eval('#tab-products', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-003: 商品詳細に undefined/NaN/null が表示されない', async () => {
+            await switchToTab('products');
+            // Click first product card
+            const card = await page.$('.product-card');
+            if (card) {
+                await card.click();
+                await sleep(500);
+                const overlay = await page.$('#product-detail-overlay:not([hidden])');
+                if (overlay) {
+                    const text = await page.$eval('#product-detail-overlay', el => el.textContent);
+                    expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+                    await page.evaluate(() => {
+                        const el = document.getElementById('product-detail-overlay');
+                        if (el) el.hidden = true;
+                    });
+                }
+            }
+        });
+
+        test('E2E-QA-005: 取引履歴に undefined/NaN/null が表示されない', async () => {
+            await switchToTab('transactions');
+            await switchToSubTab('transactions', 'history');
+            const text = await page.$eval('#subtab-history', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-006: 棚卸タブに undefined/NaN/null が表示されない', async () => {
+            await switchToTab('inventory');
+            const text = await page.$eval('#tab-inventory', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-007: 在庫一覧レポートに undefined/NaN/null が表示されない', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-stock');
+            const text = await page.$eval('#subtab-report-stock', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-008: 入出庫履歴レポートに undefined/NaN/null が表示されない', async () => {
+            await switchToSubTab('reports', 'report-history');
+            const text = await page.$eval('#subtab-report-history', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-009: 使用期限レポートに undefined/NaN/null が表示されない', async () => {
+            await switchToSubTab('reports', 'report-expiry');
+            const text = await page.$eval('#subtab-report-expiry', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-010: 棚卸差異レポートに undefined/NaN/null が表示されない', async () => {
+            await switchToSubTab('reports', 'report-variance');
+            // Select first session if available
+            await page.evaluate(() => {
+                const sel = document.getElementById('variance-session-select');
+                if (sel && sel.options.length > 1) {
+                    sel.selectedIndex = 1;
+                    sel.dispatchEvent(new Event('change'));
+                }
+            });
+            await sleep(500);
+            const text = await page.$eval('#subtab-report-variance', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        test('E2E-QA-011: 設定タブに undefined/NaN/null が表示されない', async () => {
+            await switchToTab('settings');
+            const text = await page.$eval('#tab-settings', el => el.textContent);
+            expect(text).not.toMatch(/undefined|(?<!\w)NaN(?!\w)/);
+        });
+
+        // --- 11b. 内部コード値の漏出ガード ---
+        test('E2E-QA-012: 商品一覧にカテゴリ内部値が漏出していない', async () => {
+            await switchToTab('products');
+            const text = await page.$eval('#tab-products', el => el.textContent);
+            expect(text).not.toMatch(/\bconsumable\b|\bretail\b/);
+        });
+
+        test('E2E-QA-013: 商品詳細にカテゴリ内部値が漏出していない', async () => {
+            await switchToTab('products');
+            const card = await page.$('.product-card');
+            if (card) {
+                await card.click();
+                await sleep(500);
+                const overlay = await page.$('#product-detail-overlay:not([hidden])');
+                if (overlay) {
+                    const text = await page.$eval('#product-detail-overlay', el => el.textContent);
+                    expect(text).not.toMatch(/\bconsumable\b|\bretail\b/);
+                    await page.evaluate(() => {
+                        const el = document.getElementById('product-detail-overlay');
+                        if (el) el.hidden = true;
+                    });
+                }
+            }
+        });
+
+        test('E2E-QA-014: 在庫一覧レポートにカテゴリ内部値が漏出していない', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-stock');
+            const text = await page.$eval('#subtab-report-stock', el => el.textContent);
+            expect(text).not.toMatch(/\bconsumable\b|\bretail\b/);
+        });
+
+        // --- 11c. 個別機能テスト ---
+        test('E2E-RPT-005: 在庫一覧に最低在庫が数値で表示される', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-stock');
+            const text = await page.$eval('#stock-report-table', el => el.textContent);
+            expect(text).not.toMatch(/undefined/);
+            // Check that minStock values exist as numbers in the table
+            const minStockValues = await page.$$eval('#stock-report-table .report-table tbody tr', rows =>
+                rows.map(r => r.cells[4] ? r.cells[4].textContent.trim() : '')
+            );
+            if (minStockValues.length > 0) {
+                minStockValues.forEach(v => {
+                    expect(v).toMatch(/^\d+$/);
+                });
+            }
+        });
+
+        test('E2E-RPT-006: 在庫一覧のカテゴリが日本語で表示される', async () => {
+            const categories = await page.$$eval('#stock-report-table .report-table tbody tr', rows =>
+                rows.map(r => r.cells[2] ? r.cells[2].textContent.trim() : '')
+            );
+            if (categories.length > 0) {
+                categories.forEach(cat => {
+                    expect(['消耗品', '物販']).toContain(cat);
+                });
+            }
+        });
+
+        test('E2E-RPT-007: 在庫一覧のステータスバッジに色が付いている', async () => {
+            const badges = await page.$$eval('#stock-report-table .report-table tbody tr td:last-child span', spans =>
+                spans.map(s => s.className)
+            );
+            if (badges.length > 0) {
+                badges.forEach(cls => {
+                    expect(cls).toMatch(/status-(zero|low|normal)/);
+                });
+            }
+        });
+
+        test('E2E-RPT-008: 使用期限レポートにステータスバッジの色が付いている', async () => {
+            await switchToSubTab('reports', 'report-expiry');
+            const badges = await page.$$eval('#expiry-report-table .report-table tbody tr td:last-child span', spans =>
+                spans.map(s => s.className)
+            );
+            if (badges.length > 0) {
+                badges.forEach(cls => {
+                    expect(cls).toMatch(/expiry-(normal|critical|warning|expired|ok)-badge/);
+                });
+            }
+        });
+
+        test('E2E-CNT-008: 棚卸履歴アイテムをクリック → 詳細オーバーレイが表示', async () => {
+            await switchToTab('inventory');
+            const item = await page.$('.count-history-item');
+            if (item) {
+                await item.click();
+                await sleep(500);
+                const overlay = await page.$('#count-history-detail-overlay:not([hidden])');
+                expect(overlay).not.toBeNull();
+                // Close the overlay
+                await page.evaluate(() => {
+                    const el = document.getElementById('count-history-detail-overlay');
+                    if (el) el.hidden = true;
+                });
+            }
+        });
+
+        test('E2E-CNT-009: 詳細オーバーレイに品目一覧が表示される', async () => {
+            await switchToTab('inventory');
+            const item = await page.$('.count-history-item');
+            if (item) {
+                await item.click();
+                await sleep(500);
+                const rows = await page.$$eval('#count-history-detail-items .report-table tbody tr', trs => trs.length);
+                expect(rows).toBeGreaterThan(0);
+                // Close
+                await page.evaluate(() => {
+                    const el = document.getElementById('count-history-detail-overlay');
+                    if (el) el.hidden = true;
+                });
+            }
+        });
+
+        test('E2E-CNT-010: 未カウント品目がある状態で完了 → 確認ダイアログ表示', async () => {
+            // 新規棚卸を開始（未カウント品目がある状態）
+            await switchToTab('inventory');
+            await sleep(500);
+
+            // 既存のin_progress棚卸をクリアして新規開始
+            await page.evaluate(async () => {
+                const counts = await dbGetAll('inventory_counts');
+                for (const c of counts) {
+                    if (c.status === 'in_progress') await dbDelete('inventory_counts', c.id);
+                }
+            });
+            await page.click('#start-count-btn');
+            await sleep(1000);
+
+            // 未カウント品目がある状態でcompleteCountを呼ぶ
+            // showConfirmを上書きしてダイアログメッセージをキャプチャ
+            const dialogMessages = await page.evaluate(async () => {
+                const messages = [];
+                const origShowConfirm = window.showConfirm;
+                let callCount = 0;
+                window.showConfirm = (msg) => {
+                    callCount++;
+                    messages.push(msg);
+                    if (callCount === 1) return Promise.resolve(true);
+                    return Promise.resolve(false);
+                };
+                await completeCount();
+                window.showConfirm = origShowConfirm;
+                return messages;
+            });
+
+            expect(dialogMessages.length).toBe(2);
+            expect(dialogMessages[1]).toContain('未カウントの商品');
+            expect(dialogMessages[1]).toContain('理論在庫数');
+        });
+
+        test('E2E-CNT-011: 確認ダイアログでキャンセル → 棚卸が完了しない', async () => {
+            const status = await page.evaluate(async () => {
+                const counts = await dbGetAll('inventory_counts');
+                const active = counts.find(c => c.status === 'in_progress');
+                return active ? active.status : null;
+            });
+            expect(status).toBe('in_progress');
+        });
+
+        test('E2E-CNT-012: 確認ダイアログで承認 → 理論在庫で補完され棚卸完了', async () => {
+            // activeCountIdを取得してから完了処理を実行
+            const result = await page.evaluate(async () => {
+                const countId = activeCountId;
+                const origShowConfirm = window.showConfirm;
+                window.showConfirm = () => Promise.resolve(true);
+                await completeCount();
+                window.showConfirm = origShowConfirm;
+
+                // 特定のカウントIDで検索
+                const completed = await dbGet('inventory_counts', countId);
+                if (!completed) return null;
+
+                const allFilled = completed.items.every(i =>
+                    i.actualQuantity === i.systemQuantity && i.status === 'counted'
+                );
+                return { status: completed.status, allFilled };
+            });
+
+            expect(result).not.toBeNull();
+            expect(result.status).toBe('completed');
+            expect(result.allFilled).toBe(true);
         });
     });
 });

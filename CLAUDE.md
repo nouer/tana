@@ -1,6 +1,6 @@
 # Tana - 在庫管理アプリ
 
-治療院・サロン向けの在庫管理アプリ（施術用消耗品・物販商品）
+小規模事業者向けの在庫管理アプリ（消耗品・物販商品）
 
 ## プロジェクト構造
 
@@ -104,6 +104,12 @@ docker compose run --rm tana-test
 - `tasks/lessons.md` で学んだ教訓を記録（修正を受けたら必ず追記）
 - 完了した項目は随時マークし、各ステップで高レベルのサマリーを提供する
 
+## ブラウザ操作・スクリーンショット
+
+- E2Eテストの動作確認、マニュアル用スクリーンショット取得など、ブラウザ操作が必要な場合は **Playwright MCP** を使用する
+- Puppeteer スクリプト（`tools/take_screenshots.js` 等）は使わず、Playwright MCP の `browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_click` 等のツールで直接操作する
+- アプリの URL は `http://localhost:8088`
+
 ## 完了前検証ルール
 
 - `npm test` でユニットテストが全件パス
@@ -121,6 +127,13 @@ docker compose run --rm tana-test
   - `docs/test_specification.md` — テストケースの追加/変更/削除
   - `docs/algorithm_logic.md` — 計算ロジック、アルゴリズムの変更
   - `README.md` — 機能追加時にセクション更新
+
+## バグ修正時の横展開ルール
+
+バグを修正する際は、同じ種類のバグが他の画面/コンポーネントにも存在しないか確認すること:
+1. 修正するバグの「類型」を特定する（例: undefined表示、内部値漏出、CSSクラス不一致）
+2. 同じ類型のバグがないか全UIを走査するE2Eテストを追加する
+3. テストが全画面でパスすることを確認してから修正完了とする
 
 ## コア原則
 

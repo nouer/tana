@@ -1,7 +1,7 @@
 {
     "name": "Tana - 在庫管理",
     "short_name": "Tana",
-    "description": "治療院・サロン向け在庫管理アプリ",
+    "description": "小規模事業者向け在庫管理アプリ",
     "start_url": "/index.html",
     "display": "standalone",
     "orientation": "portrait",
