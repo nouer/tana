@@ -244,6 +244,7 @@ function generateVarianceReport(countItems) {
         return {
             productId: item.productId,
             productName: item.productName,
+            productCode: item.productCode,
             systemQuantity: item.systemQuantity,
             actualQuantity: item.actualQuantity,
             variance: variance

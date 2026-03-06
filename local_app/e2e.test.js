@@ -975,6 +975,28 @@ describeE2E('Tana E2E Tests', () => {
             }, txTestProductId);
             expect(stock).toBe(85);
         });
+
+        test('E2E-TXN-007: 取引履歴 商品フィルターで絞り込みができる', async () => {
+            await switchToTab('transactions');
+            await switchToSubTab('transactions', 'history');
+            await sleep(500);
+
+            // 商品フィルタードロップダウンに選択肢があることを確認
+            const optionCount = await page.$$eval('#history-product-filter option', opts => opts.length);
+            expect(optionCount).toBeGreaterThan(1);
+
+            // テスト用商品でフィルター
+            await page.select('#history-product-filter', txTestProductId);
+            await sleep(500);
+
+            // フィルター後の表示件数を確認（表示される取引はテスト商品のもののみ）
+            const rows = await page.$$eval('.transaction-item', items => items.length);
+            expect(rows).toBeGreaterThan(0);
+
+            // リセット
+            await page.select('#history-product-filter', '');
+            await sleep(300);
+        });
     });
 
     // =========================================================================
@@ -1392,6 +1414,129 @@ describeE2E('Tana E2E Tests', () => {
                 return counts.some(c => c.status === 'completed');
             });
             expect(hasSessions).toBe(true);
+        });
+
+        test('E2E-RPT-009: 在庫レポート カテゴリフィルター', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-stock');
+            await sleep(500);
+
+            // 全件数を取得
+            const allRows = await page.$$eval('#stock-report-table .report-table tbody tr', rows => rows.length);
+            expect(allRows).toBeGreaterThan(0);
+
+            // 消耗品でフィルター
+            await page.select('#stock-report-category', 'consumable');
+            await sleep(500);
+            const consumableRows = await page.$$eval('#stock-report-table .report-table tbody tr', rows => rows.length);
+            expect(consumableRows).toBeGreaterThan(0);
+            expect(consumableRows).toBeLessThan(allRows);
+
+            // カテゴリ列が全て「消耗品」であることを確認
+            const categories = await page.$$eval('#stock-report-table .report-table tbody tr', rows =>
+                rows.map(r => r.cells[2] ? r.cells[2].textContent.trim() : '')
+            );
+            categories.forEach(cat => {
+                expect(cat).toBe('消耗品');
+            });
+
+            // リセット
+            await page.select('#stock-report-category', '');
+            await sleep(300);
+        });
+
+        test('E2E-RPT-010: 在庫レポート 並び替え', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-stock');
+            await sleep(500);
+
+            // 在庫数昇順でソート
+            await page.select('#stock-report-sort', 'stock-asc');
+            await sleep(500);
+
+            const stocksAsc = await page.$$eval('#stock-report-table .report-table tbody tr', rows =>
+                rows.map(r => {
+                    const text = r.cells[3] ? r.cells[3].textContent.trim() : '0';
+                    return parseInt(text, 10) || 0;
+                })
+            );
+            expect(stocksAsc.length).toBeGreaterThan(1);
+            for (let i = 1; i < stocksAsc.length; i++) {
+                expect(stocksAsc[i]).toBeGreaterThanOrEqual(stocksAsc[i - 1]);
+            }
+
+            // 在庫数降順でソート
+            await page.select('#stock-report-sort', 'stock-desc');
+            await sleep(500);
+
+            const stocksDesc = await page.$$eval('#stock-report-table .report-table tbody tr', rows =>
+                rows.map(r => {
+                    const text = r.cells[3] ? r.cells[3].textContent.trim() : '0';
+                    return parseInt(text, 10) || 0;
+                })
+            );
+            for (let i = 1; i < stocksDesc.length; i++) {
+                expect(stocksDesc[i]).toBeLessThanOrEqual(stocksDesc[i - 1]);
+            }
+
+            // リセット
+            await page.select('#stock-report-sort', 'name');
+            await sleep(300);
+        });
+
+        test('E2E-RPT-011: 入出庫履歴レポート 商品フィルター', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-history');
+            await sleep(500);
+
+            // 商品ドロップダウンに選択肢があることを確認
+            const optionCount = await page.$$eval('#report-history-product option', opts => opts.length);
+            expect(optionCount).toBeGreaterThan(1);
+
+            // 最初の商品でフィルター
+            const firstProductId = await page.$eval('#report-history-product option:nth-child(2)', opt => opt.value);
+            const firstProductName = await page.$eval('#report-history-product option:nth-child(2)', opt => opt.textContent);
+            await page.select('#report-history-product', firstProductId);
+            await sleep(500);
+
+            // フィルター後のテーブルに商品名が含まれることを確認
+            const rows = await page.$$eval('#history-report-table .report-table tbody tr', rows =>
+                rows.map(r => r.cells[1] ? r.cells[1].textContent.trim() : '')
+            );
+            expect(rows.length).toBeGreaterThan(0);
+            rows.forEach(name => {
+                expect(name).toBe(firstProductName);
+            });
+
+            // リセット
+            await page.select('#report-history-product', '');
+            await sleep(300);
+        });
+
+        test('E2E-RPT-012: 入出庫履歴レポート 種別フィルター', async () => {
+            await switchToTab('reports');
+            await switchToSubTab('reports', 'report-history');
+            await sleep(500);
+
+            // 全件数を取得
+            const allRows = await page.$$eval('#history-report-table .report-table tbody tr', rows => rows.length);
+            expect(allRows).toBeGreaterThan(0);
+
+            // 入庫でフィルター
+            await page.select('#report-history-type', 'receive');
+            await sleep(500);
+
+            const receiveRows = await page.$$eval('#history-report-table .report-table tbody tr', rows =>
+                rows.map(r => r.cells[2] ? r.cells[2].textContent.trim() : '')
+            );
+            expect(receiveRows.length).toBeGreaterThan(0);
+            receiveRows.forEach(type => {
+                expect(type).toBe('入庫');
+            });
+
+            // リセット
+            await page.select('#report-history-type', '');
+            await sleep(300);
         });
     });
 

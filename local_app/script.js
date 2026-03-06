@@ -366,7 +366,7 @@ async function loadProducts() {
         categories.sort().forEach(cat => {
             const option = document.createElement('option');
             option.value = cat;
-            option.textContent = cat;
+            option.textContent = TanaCalc ? TanaCalc.getCategoryLabel(cat) : cat;
             categoryFilter.appendChild(option);
         });
         categoryFilter.value = currentValue;
@@ -619,9 +619,6 @@ async function showProductDetail(productId) {
         + photoHtml
         + '<h2>' + esc(product.name) + '</h2>'
         + (product.nameKana ? '<p class="detail-kana">' + esc(product.nameKana) + '</p>' : '')
-        + '<div class="detail-stock">'
-        + '<span class="stock-badge ' + stockClass + '">在庫: ' + stock + ' ' + esc(product.unit || '個') + '</span>'
-        + '</div>'
         + '<table class="detail-table">'
         + '<tr><th>商品コード</th><td>' + esc(product.productCode || '') + '</td></tr>'
         + '<tr><th>JANコード</th><td>' + esc(product.janCode || '') + '</td></tr>'
@@ -634,13 +631,27 @@ async function showProductDetail(productId) {
         + '<tr><th>期限管理</th><td>' + (product.trackExpiry ? 'あり' : 'なし') + '</td></tr>'
         + '<tr><th>備考</th><td>' + esc(product.notes || '') + '</td></tr>'
         + '</table>'
-        + '<div class="detail-actions">'
-        + '<button class="btn btn-primary" onclick="openProductForm(\'' + product.id + '\'); closeProductDetail();">編集</button>'
-        + '<button class="btn btn-danger" onclick="deleteProduct(\'' + product.id + '\')">削除</button>'
-        + '</div>'
         + '</div>';
 
     content.innerHTML = html;
+
+    // Update the static stock display
+    const stockEl = document.getElementById('product-detail-stock');
+    if (stockEl) {
+        stockEl.textContent = stock + ' ' + (product.unit || '個');
+        stockEl.className = 'detail-stock-value ' + stockClass;
+    }
+
+    // Wire up static edit/delete buttons with current product ID
+    const editBtn = document.getElementById('product-detail-edit-btn');
+    if (editBtn) {
+        editBtn.onclick = () => { openProductForm(product.id); closeProductDetail(); };
+    }
+    const deleteBtn = document.getElementById('product-detail-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.onclick = () => deleteProduct(product.id);
+    }
+
     overlay.hidden = false;
 }
 
@@ -1122,20 +1133,20 @@ function renderTransactionItem(transaction, productName) {
 
 function onTransactionProductChange(selectElement, type) {
     const productId = selectElement.value;
-    const lotFields = document.getElementById(type + '-lot-fields');
-    if (!lotFields) return;
+    const lotNumberGroup = document.getElementById(type + '-lot-number-group');
+    const expiryDateGroup = document.getElementById(type + '-expiry-date-group');
+    if (!lotNumberGroup && !expiryDateGroup) return;
 
     if (!productId) {
-        lotFields.hidden = true;
+        if (lotNumberGroup) lotNumberGroup.hidden = true;
+        if (expiryDateGroup) expiryDateGroup.hidden = true;
         return;
     }
 
     dbGet('products', productId).then(product => {
-        if (product && product.trackExpiry) {
-            lotFields.hidden = false;
-        } else {
-            lotFields.hidden = true;
-        }
+        const show = !!(product && product.trackExpiry);
+        if (lotNumberGroup) lotNumberGroup.hidden = !show;
+        if (expiryDateGroup) expiryDateGroup.hidden = !show;
     });
 }
 
@@ -1735,7 +1746,34 @@ async function loadStockReport() {
     const activeProducts = products.filter(p => p.isActive !== false);
     const transactions = await dbGetAll('stock_transactions');
 
-    const reportData = TanaCalc ? TanaCalc.buildStockSummaryReport(activeProducts, transactions) : [];
+    // Apply category filter
+    const categoryEl = document.getElementById('stock-report-category');
+    const category = categoryEl ? categoryEl.value : '';
+    const filteredProducts = TanaCalc ? TanaCalc.filterByCategory(activeProducts, category) : activeProducts;
+
+    let reportData = TanaCalc ? TanaCalc.buildStockSummaryReport(filteredProducts, transactions) : [];
+
+    // Apply sort
+    const sortEl = document.getElementById('stock-report-sort');
+    const sortValue = sortEl ? sortEl.value : 'name';
+    if (sortValue === 'name') {
+        reportData.sort((a, b) => (a.productName || '').localeCompare(b.productName || '', 'ja'));
+    } else if (sortValue === 'stock-asc') {
+        reportData.sort((a, b) => a.currentStock - b.currentStock);
+    } else if (sortValue === 'stock-desc') {
+        reportData.sort((a, b) => b.currentStock - a.currentStock);
+    } else if (sortValue === 'value') {
+        const txByProduct = {};
+        transactions.forEach(tx => {
+            if (!txByProduct[tx.productId]) txByProduct[tx.productId] = [];
+            txByProduct[tx.productId].push(tx);
+        });
+        reportData.sort((a, b) => {
+            const valA = TanaCalc ? TanaCalc.calculateStockValue(txByProduct[a.productId] || []) : 0;
+            const valB = TanaCalc ? TanaCalc.calculateStockValue(txByProduct[b.productId] || []) : 0;
+            return valB - valA;
+        });
+    }
 
     const containerEl = document.getElementById('stock-report-table');
     if (!containerEl) return;
@@ -1777,15 +1815,36 @@ async function loadHistoryReport() {
     const products = await dbGetAll('products');
     const transactions = await dbGetAll('stock_transactions');
 
+    // Populate product filter dropdown
+    const productFilterEl = document.getElementById('report-history-product');
+    if (productFilterEl && productFilterEl.options.length <= 1) {
+        const activeProducts = products.filter(p => p.isActive !== false);
+        activeProducts.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+        const currentVal = productFilterEl.value;
+        productFilterEl.innerHTML = '<option value="">すべて</option>';
+        activeProducts.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = p.name;
+            productFilterEl.appendChild(option);
+        });
+        if (currentVal) productFilterEl.value = currentVal;
+    }
+
     // Get filter values
     const dateFromEl = document.getElementById('report-history-date-from');
     const dateToEl = document.getElementById('report-history-date-to');
     const dateFrom = dateFromEl ? dateFromEl.value : '';
     const dateTo = dateToEl ? dateToEl.value : '';
+    const productId = productFilterEl ? productFilterEl.value : '';
+    const typeFilterEl = document.getElementById('report-history-type');
+    const transactionType = typeFilterEl ? typeFilterEl.value : '';
 
     const reportData = TanaCalc ? TanaCalc.buildTransactionReport(transactions, products, {
         dateFrom: dateFrom,
         dateTo: dateTo,
+        productId: productId || undefined,
+        transactionType: transactionType || undefined,
     }) : [];
 
     const containerEl = document.getElementById('history-report-table');
@@ -1914,7 +1973,7 @@ async function loadVarianceReport() {
 
     let reportData = selectedCount.items;
     if (TanaCalc && TanaCalc.buildVarianceReport) {
-        reportData = TanaCalc.buildVarianceReport(selectedCount.items);
+        reportData = TanaCalc.buildVarianceReport(selectedCount);
     }
 
     let html = '<table class="report-table">'
@@ -2654,6 +2713,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         sampleDataBtn.addEventListener('click', loadSampleData);
     }
 
+    // Quick action button listeners (dashboard)
+    const quickScanReceive = document.getElementById('quick-scan-receive');
+    if (quickScanReceive) {
+        quickScanReceive.addEventListener('click', () => {
+            openScanner(async (code) => {
+                const product = await lookupByBarcode(code);
+                if (product) {
+                    switchTab('transactions');
+                    switchSubTab('transactions', 'receive');
+                    const select = document.getElementById('receive-product');
+                    if (select) {
+                        select.value = product.id;
+                        onTransactionProductChange(select, 'receive');
+                    }
+                    showToast(product.name + ' を選択しました', 'success');
+                } else {
+                    showToast('JANコード「' + code + '」の商品が見つかりません', 'error');
+                }
+            });
+        });
+    }
+
+    const quickScanUse = document.getElementById('quick-scan-use');
+    if (quickScanUse) {
+        quickScanUse.addEventListener('click', () => {
+            openScanner(async (code) => {
+                const product = await lookupByBarcode(code);
+                if (product) {
+                    switchTab('transactions');
+                    switchSubTab('transactions', 'use');
+                    const select = document.getElementById('use-product');
+                    if (select) {
+                        select.value = product.id;
+                        onTransactionProductChange(select, 'use');
+                    }
+                    showToast(product.name + ' を選択しました', 'success');
+                } else {
+                    showToast('JANコード「' + code + '」の商品が見つかりません', 'error');
+                }
+            });
+        });
+    }
+
+    const quickStartCount = document.getElementById('quick-start-count');
+    if (quickStartCount) {
+        quickStartCount.addEventListener('click', () => {
+            switchTab('inventory');
+            startNewCount();
+        });
+    }
+
     // Scan FAB listeners
     const scanFab = document.getElementById('scan-fab');
     if (scanFab) {
@@ -2725,6 +2835,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (reportHistoryTo) {
         reportHistoryTo.addEventListener('change', () => loadHistoryReport());
     }
+
+    // Stock report filter listeners
+    ['stock-report-category', 'stock-report-sort'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => loadStockReport());
+    });
+
+    // History report filter listeners
+    ['report-history-product', 'report-history-type'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => loadHistoryReport());
+    });
 
     // Variance report selector listener
     const varianceSelector = document.getElementById('variance-session-select');
