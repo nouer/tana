@@ -209,7 +209,7 @@ function calculateVariance(systemQty, actualQty) {
 
 /**
  * Generate variance report from count items.
- * @param {Array} countItems - [{productId, productName, systemQty, actualQty}]
+ * @param {Array} countItems - [{productId, productName, systemQuantity, actualQuantity}]
  * @returns {object}
  */
 function generateVarianceReport(countItems) {
@@ -229,8 +229,8 @@ function generateVarianceReport(countItems) {
     var totalVariancePositive = 0;
     var totalVarianceNegative = 0;
     var items = countItems.map(function (item) {
-        var variance = calculateVariance(item.systemQty, item.actualQty);
-        if (item.actualQty !== null && item.actualQty !== undefined) {
+        var variance = calculateVariance(item.systemQuantity, item.actualQuantity);
+        if (item.actualQuantity !== null && item.actualQuantity !== undefined) {
             countedItems++;
         }
         if (variance !== 0) {
@@ -244,8 +244,8 @@ function generateVarianceReport(countItems) {
         return {
             productId: item.productId,
             productName: item.productName,
-            systemQty: item.systemQty,
-            actualQty: item.actualQty,
+            systemQuantity: item.systemQuantity,
+            actualQuantity: item.actualQuantity,
             variance: variance
         };
     });
@@ -261,7 +261,7 @@ function generateVarianceReport(countItems) {
 
 /**
  * For each item with variance != 0, create an adjust transaction.
- * @param {Array} countItems - [{productId, systemQty, actualQty}]
+ * @param {Array} countItems - [{productId, systemQuantity, actualQuantity}]
  * @param {string} countDate - YYYY-MM-DD
  * @returns {Array}
  */
@@ -271,7 +271,7 @@ function buildAdjustmentTransactions(countItems, countDate) {
     }
     var result = [];
     countItems.forEach(function (item) {
-        var variance = calculateVariance(item.systemQty, item.actualQty);
+        var variance = calculateVariance(item.systemQuantity, item.actualQuantity);
         if (variance !== 0) {
             result.push({
                 productId: item.productId,
@@ -796,7 +796,7 @@ function buildExpiryReport(transactions, products) {
     }).map(function(lot) {
         var p = productMap[lot.productId];
         var daysUntil = Math.ceil((new Date(lot.expiryDate) - new Date(today)) / 86400000);
-        var alertDays = p ? (Number(p.expiryAlertDays) || 90) : 90;
+        var alertDays = p ? (Number(p.expiryAlertDays) || 30) : 30;
         var status = daysUntil <= 0 ? 'expired'
             : daysUntil <= 30 ? 'critical'
             : daysUntil <= alertDays ? 'warning' : 'normal';
@@ -814,7 +814,7 @@ function buildExpiryReport(transactions, products) {
 
 /**
  * Build variance report from inventory count.
- * @param {object} inventoryCount - {countDate, status, items: [{productName, systemQty, actualQty}]}
+ * @param {object} inventoryCount - {countDate, status, items: [{productName, systemQuantity, actualQuantity}]}
  * @returns {object}
  */
 function buildVarianceReport(inventoryCount) {

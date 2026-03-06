@@ -268,9 +268,9 @@ describe('棚卸計算', () => {
 
     test('UT-CNT-004: generateVarianceReport 差異ありなし混在', () => {
         const countItems = [
-            { productId: 'P1', productName: '商品A', systemQty: 10, actualQty: 10 },
-            { productId: 'P2', productName: '商品B', systemQty: 5, actualQty: 8 },
-            { productId: 'P3', productName: '商品C', systemQty: 20, actualQty: 17 }
+            { productId: 'P1', productName: '商品A', systemQuantity: 10, actualQuantity: 10 },
+            { productId: 'P2', productName: '商品B', systemQuantity: 5, actualQuantity: 8 },
+            { productId: 'P3', productName: '商品C', systemQuantity: 20, actualQuantity: 17 }
         ];
         const report = TanaCalc.generateVarianceReport(countItems);
         expect(report.totalItems).toBe(3);
@@ -286,8 +286,8 @@ describe('棚卸計算', () => {
 
     test('UT-CNT-005: generateVarianceReport 全て一致 → discrepancies=0', () => {
         const countItems = [
-            { productId: 'P1', productName: '商品A', systemQty: 10, actualQty: 10 },
-            { productId: 'P2', productName: '商品B', systemQty: 5, actualQty: 5 }
+            { productId: 'P1', productName: '商品A', systemQuantity: 10, actualQuantity: 10 },
+            { productId: 'P2', productName: '商品B', systemQuantity: 5, actualQuantity: 5 }
         ];
         const report = TanaCalc.generateVarianceReport(countItems);
         expect(report.discrepancies).toBe(0);
@@ -295,16 +295,16 @@ describe('棚卸計算', () => {
         expect(report.totalVarianceNegative).toBe(0);
     });
 
-    test('UT-CNT-006: generateVarianceReport 未カウント品(actualQtyがnull/undefined)', () => {
+    test('UT-CNT-006: generateVarianceReport 未カウント品(actualQuantityがnull/undefined)', () => {
         const countItems = [
-            { productId: 'P1', productName: '商品A', systemQty: 10, actualQty: 10 },
-            { productId: 'P2', productName: '商品B', systemQty: 5, actualQty: null },
-            { productId: 'P3', productName: '商品C', systemQty: 8, actualQty: undefined }
+            { productId: 'P1', productName: '商品A', systemQuantity: 10, actualQuantity: 10 },
+            { productId: 'P2', productName: '商品B', systemQuantity: 5, actualQuantity: null },
+            { productId: 'P3', productName: '商品C', systemQuantity: 8, actualQuantity: undefined }
         ];
         const report = TanaCalc.generateVarianceReport(countItems);
         expect(report.totalItems).toBe(3);
         expect(report.countedItems).toBe(1);
-        // null/undefined actualQty → variance = 0 - systemQty = negative
+        // null/undefined actualQuantity → variance = 0 - systemQuantity = negative
         // P2: variance = 0 - 5 = -5 (discrepancy)
         // P3: variance = 0 - 8 = -8 (discrepancy)
         expect(report.discrepancies).toBe(2);
@@ -312,9 +312,9 @@ describe('棚卸計算', () => {
 
     test('UT-CNT-007: buildAdjustmentTransactions 差異があるもののみ', () => {
         const countItems = [
-            { productId: 'P1', systemQty: 10, actualQty: 10 },
-            { productId: 'P2', systemQty: 5, actualQty: 8 },
-            { productId: 'P3', systemQty: 20, actualQty: 17 }
+            { productId: 'P1', systemQuantity: 10, actualQuantity: 10 },
+            { productId: 'P2', systemQuantity: 5, actualQuantity: 8 },
+            { productId: 'P3', systemQuantity: 20, actualQuantity: 17 }
         ];
         const result = TanaCalc.buildAdjustmentTransactions(countItems, '2025-01-15');
         expect(result).toHaveLength(2);
@@ -336,8 +336,8 @@ describe('棚卸計算', () => {
 
     test('UT-CNT-008: buildAdjustmentTransactions 差異なし → 空配列', () => {
         const countItems = [
-            { productId: 'P1', systemQty: 10, actualQty: 10 },
-            { productId: 'P2', systemQty: 5, actualQty: 5 }
+            { productId: 'P1', systemQuantity: 10, actualQuantity: 10 },
+            { productId: 'P2', systemQuantity: 5, actualQuantity: 5 }
         ];
         const result = TanaCalc.buildAdjustmentTransactions(countItems, '2025-01-15');
         expect(result).toHaveLength(0);
@@ -827,8 +827,8 @@ describe('レポート', () => {
             countDate: '2025-01-15',
             status: 'completed',
             items: [
-                { productName: '商品A', systemQty: 10, actualQty: 10 },
-                { productName: '商品B', systemQty: 5, actualQty: 8 }
+                { productName: '商品A', systemQuantity: 10, actualQuantity: 10 },
+                { productName: '商品B', systemQuantity: 5, actualQuantity: 8 }
             ]
         };
         const result = TanaCalc.buildVarianceReport(inventoryCount);

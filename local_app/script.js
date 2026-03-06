@@ -1457,7 +1457,7 @@ async function completeCount() {
     // Generate variance report
     let varianceReport = null;
     if (TanaCalc && TanaCalc.buildVarianceReport) {
-        varianceReport = TanaCalc.buildVarianceReport(items);
+        varianceReport = TanaCalc.buildVarianceReport(activeCount);
     }
 
     // Create adjustment transactions for discrepancies
@@ -1979,7 +1979,7 @@ async function loadSettings() {
         const el = document.getElementById('setting-low-stock-threshold');
         if (el) el.value = invSettings.lowStockThreshold || '';
         const expiryEl = document.getElementById('default-expiry-alert-days');
-        if (expiryEl) expiryEl.value = invSettings.expiryWarningDays || 90;
+        if (expiryEl) expiryEl.value = invSettings.expiryWarningDays || 30;
     }
 
     // Load notification setting
@@ -2041,7 +2041,7 @@ async function saveInventorySettings() {
 
     const invSettings = {
         lowStockThreshold: thresholdEl ? parseInt(thresholdEl.value) || 0 : 0,
-        expiryWarningDays: expiryEl ? parseInt(expiryEl.value) || 90 : 90,
+        expiryWarningDays: expiryEl ? parseInt(expiryEl.value) || 30 : 30,
     };
 
     await saveSetting('inventory_settings', invSettings);
