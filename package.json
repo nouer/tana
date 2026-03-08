@@ -4,24 +4,26 @@
   "description": "Tana - 在庫管理アプリ (Inventory Manager)",
   "main": "local_app/script.js",
   "scripts": {
-    "test": "jest --coverage --forceExit"
+    "test": "jest --forceExit"
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "collectCoverage": true,
-    "coverageReporters": ["text", "lcov"],
-    "coverageDirectory": "coverage",
     "projects": [
       {
         "displayName": "unit",
         "testEnvironment": "jsdom",
         "testMatch": ["**/tana.calc.test.js"],
-        "testPathIgnorePatterns": ["local_app/e2e.test.js"]
+        "testPathIgnorePatterns": ["local_app/e2e.test.js"],
+        "collectCoverage": true,
+        "coverageReporters": ["text", "lcov"],
+        "coverageDirectory": "coverage",
+        "collectCoverageFrom": ["local_app/tana.calc.js"]
       },
       {
         "displayName": "e2e",
         "testEnvironment": "node",
-        "testMatch": ["**/e2e.test.js"]
+        "testMatch": ["**/e2e.test.js", "**/e2e.workflow.test.js"],
+        "collectCoverage": false
       }
     ]
   },

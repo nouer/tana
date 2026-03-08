@@ -206,13 +206,13 @@
 | name | 必須、string型、空文字不可、1〜100文字 | 「商品名は必須です」「商品名は100文字以内で入力してください」 |
 | category | `"consumable"` または `"retail"` のいずれか | 「カテゴリは「consumable」または「retail」を指定してください」 |
 | janCode | 空OK（null/undefined/空文字は有効）。値がある場合はJAN-8またはJAN-13形式、チェックデジット検証 | 「JANコードが不正です」 |
-| nameKana | 空OK。値がある場合はひらがな（U+3040〜U+309F）＋長音符（U+30FC）＋スペースのみ | 「フリガナはひらがなで入力してください」 |
+| nameKana | 空OK。値がある場合はひらがな（U+3040〜U+309F）＋英数字(0-9, a-zA-Z)＋長音符（U+30FC）＋中黒（U+30FB）＋ハイフン＋スペースのみ | 「ふりがなに使用できない文字が含まれています」 |
 | defaultPrice | 空OK。値がある場合は0以上の数値 | 「販売価格は0以上の数値を入力してください」 |
 | costPrice | 空OK。値がある場合は0以上の数値 | 「原価は0以上の数値を入力してください」 |
 | minStock | 空OK。値がある場合は0以上の数値 | 「最小在庫数は0以上の数値を入力してください」 |
 | expiryAlertDays | 空OK。値がある場合は0以上の数値 | 「期限アラート日数は0以上の数値を入力してください」 |
 
-正規表現パターン（nameKana）: `/^[\u3040-\u309F\u30FC\s]+$/`
+正規表現パターン（nameKana）: `/^[\u3040-\u309F\u30FC\s0-9a-zA-Z\u30FB\-]+$/`
 
 ### 3.2 取引バリデーション（validateTransaction）
 
@@ -299,7 +299,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 |-------------|--------|------|------|------|
 | product-code | 商品コード | text | - | 新規時は自動生成（`P` + タイムスタンプ下8桁）、編集時は読み取り専用 |
 | product-name | 商品名 | text | required | 1〜100文字 |
-| product-name-kana | 商品名（カナ） | text | - | ひらがなのみ |
+| product-name-kana | 商品名（ふりがな） | text | - | ひらがなのみ |
 | product-jan-code | JANコード | text | - | JAN-8/JAN-13形式 |
 | product-category | カテゴリ | select | required | 選択肢: 消耗品（consumable）、物販（retail） |
 | product-unit | 単位 | text | - | placeholder: 「例: 個、本、箱」。デフォルト: 「個」 |
@@ -339,7 +339,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 |------|---------|
 | 写真 | 大サイズ画像表示（最大幅: 300px） |
 | 商品名 | h2見出し |
-| フリガナ | 商品名の下にテキスト表示 |
+| ふりがな | 商品名の下にテキスト表示 |
 | 在庫数 | `stock-badge` クラスで色分け表示（stock-ok/stock-low/stock-out） |
 | 詳細テーブル | 商品コード、JANコード、カテゴリ（日本語表示）、単位、最低在庫数、仕入先、単価、期限管理、備考 |
 

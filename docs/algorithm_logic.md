@@ -944,10 +944,10 @@ FUNCTION validateProduct(product)
         END IF
     END IF
 
-    // フリガナ: 任意、ひらがな・長音符・スペースのみ
+    // ふりがな: 任意、ひらがな・英数字・長音符・中黒・ハイフン・スペースのみ
     IF product.nameKana が null/undefined/空文字列 でない THEN
-        IF nameKana が /^[\u3040-\u309F\u30FC\s]+$/ にマッチしない THEN
-            errors に追加: 'フリガナはひらがなで入力してください'
+        IF nameKana が /^[\u3040-\u309F\u30FC\s0-9a-zA-Z\u30FB\-]+$/ にマッチしない THEN
+            errors に追加: 'ふりがなに使用できない文字が含まれています'
         END IF
     END IF
 
@@ -990,7 +990,7 @@ END FUNCTION
 | name | 必須 | string | 1〜100文字、空白のみ不可 | 商品名は必須です / 商品名は100文字以内で入力してください |
 | category | 必須 | string | "consumable" or "retail" | カテゴリは「consumable」または「retail」を指定してください |
 | janCode | 任意 | string | JAN-8 or JAN-13、チェックデジット検証 | JANコードが不正です |
-| nameKana | 任意 | string | ひらがな・長音符(ー)・空白のみ | フリガナはひらがなで入力してください |
+| nameKana | 任意 | string | ひらがな・英数字・長音符(ー)・中黒(・)・ハイフン(-)・空白 | ふりがなに使用できない文字が含まれています |
 | defaultPrice | 任意 | number | >= 0 | 販売価格は0以上の数値を入力してください |
 | costPrice | 任意 | number | >= 0 | 原価は0以上の数値を入力してください |
 | minStock | 任意 | number | >= 0 | 最小在庫数は0以上の数値を入力してください |
@@ -1408,7 +1408,7 @@ END FUNCTION
 | フィールド | 検索方式 | 大文字小文字 |
 |-----------|---------|------------|
 | name（商品名） | 部分一致（indexOf） | 区別しない |
-| nameKana（フリガナ） | 部分一致（indexOf） | 区別しない |
+| nameKana（ふりがな） | 部分一致（indexOf） | 区別しない |
 | janCode（JANコード） | 部分一致（indexOf） | 区別しない |
 
 **検索例**:

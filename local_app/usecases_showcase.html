@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tana 活用事例 — さくらクリニックの在庫管理 -- Tana</title>
+    <meta name="description" content="「もう、在庫切れで施術を中断することはありません」">
+    <meta property="og:title" content="Tana 活用事例 — さくらクリニックの在庫管理 -- Tana">
+    <meta property="og:description" content="「もう、在庫切れで施術を中断することはありません」">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ja_JP">
+    <style>
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+        'Helvetica Neue', Arial, 'Noto Sans CJK JP', sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #1a1a1a;
+    background-color: #f8f8f8;
+}
+
+.container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+    background-color: #fff;
+    min-height: 100vh;
+}
+
+nav.back-link {
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+nav.back-link a {
+    color: #059669;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+nav.back-link a:hover {
+    text-decoration: underline;
+}
+
+h1 {
+    font-size: 28px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 1.2em;
+    padding-bottom: 0.4em;
+    border-bottom: 2px solid #059669;
+}
+
+h2 {
+    font-size: 22px;
+    font-weight: bold;
+    margin-top: 2em;
+    margin-bottom: 0.6em;
+    padding-bottom: 0.2em;
+    border-bottom: 1px solid #ccc;
+}
+
+h3 {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 1.5em;
+    margin-bottom: 0.4em;
+}
+
+h4 {
+    font-size: 16px;
+    font-weight: bold;
+    margin-top: 1em;
+    margin-bottom: 0.3em;
+}
+
+p {
+    margin: 0.6em 0;
+    text-align: justify;
+}
+
+ul, ol {
+    margin: 0.6em 0;
+    padding-left: 2em;
+}
+
+li {
+    margin: 0.3em 0;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    font-size: 15px;
+}
+
+th, td {
+    border: 1px solid #999;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #ecfdf5;
+    font-weight: bold;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #ccc;
+    margin: 2em 0;
+}
+
+code {
+    font-size: 14px;
+    background-color: #f5f5f5;
+    padding: 0.15em 0.3em;
+    border-radius: 3px;
+}
+
+pre {
+    background-color: #f5f5f5;
+    padding: 1em;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.4;
+    border-radius: 4px;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+}
+
+blockquote {
+    border-left: 3px solid #059669;
+    margin: 0.8em 0;
+    padding: 0.2em 0 0.2em 1em;
+    color: #555;
+}
+
+strong {
+    font-weight: bold;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0.5em auto;
+}
+
+a {
+    color: #059669;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+sub {
+    font-size: 12px;
+    color: #888;
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 16px 16px 48px;
+    }
+
+    h1 {
+        font-size: 22px;
+    }
+
+    h2 {
+        font-size: 19px;
+    }
+
+    h3 {
+        font-size: 16px;
+    }
+
+    table {
+        font-size: 13px;
+    }
+
+    th, td {
+        padding: 6px 8px;
+    }
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="back-link">
+            <a href="/">&larr; Tana アプリに戻る</a>
+        </nav>
+        <h1>Tana 活用事例 — さくらクリニックの在庫管理</h1>
+        <p><strong>「もう、在庫切れで施術を中断することはありません」</strong></p>
+        <p>東京・渋谷の鍼灸院「さくらクリニック」は、施術用消耗品と物販商品の在庫管理に Tana を導入しました。院長の田中先生が一人で運営する小さな治療院が、どのように Tana を活用しているのか — 8つのシーンでご紹介します。</p>
+        <hr />
+        <h2>UC1: 開業準備 — 初期セットアップ</h2>
+        <p>Tana を開いたら、まず設定タブで事業者情報を登録します。店舗名・住所・電話番号を入力して保存するだけ。アカウント登録もメールアドレスも不要です。</p>
+        <img src="/docs-images/uc1_settings.png" width="720" alt="設定画面 — 事業者情報の入力">
+        <p>続いて、商品タブから最初の商品を登録します。消耗品（施術用の鍼）と物販商品（サプリメント）をそれぞれ登録。カテゴリ・単位・仕入価格・最低在庫数など、必要な情報をフォームに入力するだけです。</p>
+        <img src="/docs-images/uc1_product_form.png" width="720" alt="商品登録フォーム">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>商品コードは自動採番（P-0001, P-0002...）、手入力不要</li>
+        <li>JANコード（バーコード）を登録しておけば、入庫時にスキャンで素早く商品を特定できる</li>
+        <li>使用期限管理のON/OFFを商品ごとに設定可能</li>
+        </ul>
+        <hr />
+        <h2>UC2: 初回入荷 — 在庫の受け入れ</h2>
+        <p>商品が届いたら、入出庫タブの「入庫」サブタブで入庫記録をつけます。商品を選択し、数量・ロット番号・使用期限を入力。使用期限管理がONの商品では、ロット番号と期限の入力欄が自動で表示されます。</p>
+        <img src="/docs-images/uc2_receive_form.png" width="720" alt="入庫フォーム — ロット番号・使用期限入力">
+        <p>入庫を記録すると、ダッシュボードにリアルタイムで反映されます。登録商品数・総在庫数が一目で確認でき、最近の入出庫履歴も表示されます。</p>
+        <img src="/docs-images/uc2_dashboard.png" width="720" alt="ダッシュボード — 在庫概要">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>バーコードスキャンで商品を素早く特定して入庫可能</li>
+        <li>ロット単位の在庫追跡で、どのロットをいつ入荷したか記録が残る</li>
+        <li>仕入単価を記録することで、在庫金額の把握も可能</li>
+        </ul>
+        <hr />
+        <h2>UC3: 日常業務 — 消費と販売</h2>
+        <p>毎日の施術で使った消耗品は「使用」サブタブで記録。患者さんへの物販は「販売」サブタブで記録します。在庫数はリアルタイムに減算され、ダッシュボードに反映されます。</p>
+        <p>在庫が最低在庫数を下回ると、ダッシュボードの「在庫不足アラート」に警告が表示されます。発注タイミングを見逃しません。</p>
+        <img src="/docs-images/uc3_dashboard_alert.png" width="720" alt="ダッシュボード — 在庫不足アラートと使用期限アラート">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>使用・販売の記録は商品を選んで数量を入れるだけのシンプル操作</li>
+        <li>最低在庫数は商品ごとに設定可能。消費ペースに合わせて調整できる</li>
+        <li>アラートはバッジ付きで件数表示。見逃しを防止</li>
+        </ul>
+        <hr />
+        <h2>UC4: 期限管理 — 使用期限の確認と対応</h2>
+        <p>使用期限が近づいた商品は、ダッシュボードの「使用期限アラート」で自動通知されます。さらに詳しく確認したいときは、レポートタブの「使用期限」サブタブへ。</p>
+        <p>ロットごとに期限の残日数とステータスが一覧表示され、色分けバッジで視覚的に状況を把握できます。</p>
+        <img src="/docs-images/uc4_expiry_report.png" width="720" alt="使用期限レポート — ロット別ステータス一覧">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>「注意」（黄色）・「期限切れ」（赤色）・「正常」（緑色）のバッジで直感的に判断</li>
+        <li>アラート日数は設定タブでカスタマイズ可能（デフォルト30日）</li>
+        <li>使用期限管理OFFの商品はレポートに含まれないため、ノイズなし</li>
+        </ul>
+        <hr />
+        <h2>UC5: 月次棚卸 — 在庫確認と調整</h2>
+        <p>月末の棚卸は、棚卸タブから「新規棚卸を開始」をタップするだけ。全商品がリストアップされ、理論在庫（システム上の在庫数）が表示されます。</p>
+        <img src="/docs-images/uc5_inventory_count.png" width="720" alt="棚卸画面 — 全商品リストと理論在庫">
+        <p>商品をタップするとテンキーオーバーレイが表示され、実際にカウントした数をスマホでサクサク入力できます。</p>
+        <img src="/docs-images/uc5_numpad.png" width="720" alt="テンキーオーバーレイ — 実数入力">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>テンキーはスマホでの片手操作を想定した大きなボタン設計</li>
+        <li>差異（実在庫 - 理論在庫）はリアルタイム表示</li>
+        <li>棚卸完了時に調整取引が自動生成され、システム在庫が実在庫に合わせて補正される</li>
+        </ul>
+        <hr />
+        <h2>UC6: レポート活用 — 経営分析</h2>
+        <p>レポートタブでは、4種類のレポートで在庫状況を多角的に分析できます。</p>
+        <p><strong>在庫一覧レポート</strong> — 全商品の在庫数・最低在庫・状態を一覧表示。カテゴリフィルターや並び替えで、必要な情報を素早く抽出できます。</p>
+        <img src="/docs-images/uc6_stock_report.png" width="720" alt="在庫一覧レポート — 全商品の在庫状況">
+        <p><strong>入出庫履歴レポート</strong> — 日付・商品・種別でフィルタリングし、過去の取引を詳細に確認。仕入れの傾向分析や、消費ペースの把握に役立ちます。</p>
+        <img src="/docs-images/uc6_history_report.png" width="720" alt="入出庫履歴レポート — フィルター付き取引履歴">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>カテゴリフィルター（消耗品/物販）で表示を切り替え</li>
+        <li>在庫数の少ない順/多い順で並び替え。発注優先度の判断に</li>
+        <li>使用期限レポート・棚卸差異レポートも同じタブから切り替え可能</li>
+        </ul>
+        <hr />
+        <h2>UC7: データ保全 — バックアップと復元</h2>
+        <p>スマートフォンの機種変更や万が一のデータ消失に備えて、設定タブの「データ管理」からワンタップでバックアップ。JSON形式のファイルとしてダウンロードされます。</p>
+        <img src="/docs-images/uc7_data_management.png" width="720" alt="データ管理 — エクスポート・インポート">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>エクスポートファイルには商品・取引・棚卸・設定のすべてが含まれる</li>
+        <li>インポートで別の端末にデータをそのまま復元可能</li>
+        <li>データはすべて端末内（ブラウザ）に保存。外部サーバーへの送信は一切なし</li>
+        </ul>
+        <hr />
+        <h2>UC8: 商品管理 — 検索・編集・削除</h2>
+        <p>商品数が増えても大丈夫。検索ボックスに商品名やJANコードを入力すれば、瞬時に絞り込めます。カテゴリフィルターとの組み合わせで、さらに効率的に目的の商品を見つけられます。</p>
+        <img src="/docs-images/uc8_product_search.png" width="720" alt="商品検索 — 部分一致検索結果">
+        <p><strong>ポイント</strong></p>
+        <ul>
+        <li>商品名の部分一致検索とJANコード検索の両方に対応</li>
+        <li>商品の編集（名前・価格・最低在庫数など）はタップ操作で完了</li>
+        <li>取り扱い終了商品は論理削除。過去の取引履歴はそのまま保持</li>
+        </ul>
+        <hr />
+        <h2>まとめ — Tana がさくらクリニックにもたらした変化</h2>
+        <p>Tana の導入により、さくらクリニックの在庫管理は大きく変わりました。</p>
+        <ul>
+        <li><strong>在庫切れゼロ</strong> — 低在庫アラートで発注タイミングを逃さない</li>
+        <li><strong>期限管理の自動化</strong> — 使用期限レポートで期限切れリスクを事前に把握</li>
+        <li><strong>棚卸時間の短縮</strong> — テンキー入力と自動調整で、月末の棚卸が数分で完了</li>
+        <li><strong>データに基づく発注</strong> — 入出庫履歴レポートで消費傾向を分析し、適切な発注量を判断</li>
+        </ul>
+        <p>すべてブラウザだけで完結。月額料金もアカウント登録も不要。データは端末内に安全に保存されます。</p>
+        <hr />
+        <h2>今すぐ試してみましょう</h2>
+        <p>サンプルデータを読み込めば、このページで紹介した機能をすぐに体験できます。</p>
+        <p><a href="index.html"><strong>Tana を試してみる →</strong></a></p>
+        <p>使い方を詳しく知りたい方は <a href="manual.html"><strong>ユーザーマニュアル →</strong></a> をご覧ください。</p>
+        <p>Tana の機能概要・比較は <a href="promotion.html"><strong>プロモーションページ →</strong></a> をご覧ください。</p>
+        <hr />
+        <p><sub>Tana はオープンソースソフトウェアです（MIT License）。</sub></p>
+        
+    </div>
+</body>
+</html>

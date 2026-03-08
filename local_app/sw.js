@@ -3,7 +3,7 @@
  * アセットキャッシュによる完全オフライン対応
  */
 
-const CACHE_NAME = 'tana-v1.0.0-1772947022';
+const CACHE_NAME = 'tana-v1.0.0-1772960430';
 
 const PRECACHE_ASSETS = [
     '/',
@@ -22,7 +22,8 @@ const PRECACHE_ASSETS = [
     '/icons/favicon-16.png',
     '/notify.html',
     '/manual.html',
-    '/promotion.html'
+    '/promotion.html',
+    '/usecases_showcase.html'
 ];
 
 self.addEventListener('install', (event) => {

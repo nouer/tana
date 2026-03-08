@@ -417,10 +417,10 @@ function validateProduct(product) {
             errors.push('JANコードが不正です');
         }
     }
-    // nameKana: optional, hiragana only if present
+    // nameKana: optional, hiragana + alphanumeric + symbols if present
     if (product.nameKana !== null && product.nameKana !== undefined && product.nameKana !== '') {
-        if (!/^[\u3040-\u309F\u30FC\s]+$/.test(product.nameKana)) {
-            errors.push('フリガナはひらがなで入力してください');
+        if (!/^[\u3040-\u309F\u30FC\s0-9a-zA-Z\u30FB\-]+$/.test(product.nameKana)) {
+            errors.push('ふりがなに使用できない文字が含まれています');
         }
     }
     // Numeric validations

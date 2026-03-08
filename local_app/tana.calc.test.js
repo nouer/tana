@@ -432,7 +432,28 @@ describe('商品バリデーション', () => {
     test('UT-VP-014: nameKanaにカタカナ → invalid', () => {
         const result = TanaCalc.validateProduct({ ...validProduct, nameKana: 'テストショウヒン' });
         expect(result.valid).toBe(false);
-        expect(result.errors).toContain('フリガナはひらがなで入力してください');
+        expect(result.errors).toContain('ふりがなに使用できない文字が含まれています');
+    });
+
+    test('UT-VP-016: nameKanaに数字を含む → valid', () => {
+        const result = TanaCalc.validateProduct({ ...validProduct, nameKana: 'せいりんはり 15' });
+        expect(result.valid).toBe(true);
+    });
+
+    test('UT-VP-017: nameKanaに英字・ハイフンを含む → valid', () => {
+        const result = TanaCalc.validateProduct({ ...validProduct, nameKana: 'せいりんはり j-15' });
+        expect(result.valid).toBe(true);
+    });
+
+    test('UT-VP-018: nameKanaに中黒を含む → valid', () => {
+        const result = TanaCalc.validateProduct({ ...validProduct, nameKana: 'ぐるこさみん・こんどろいちん' });
+        expect(result.valid).toBe(true);
+    });
+
+    test('UT-VP-019: nameKanaに漢字 → invalid', () => {
+        const result = TanaCalc.validateProduct({ ...validProduct, nameKana: 'テスト商品' });
+        expect(result.valid).toBe(false);
+        expect(result.errors).toContain('ふりがなに使用できない文字が含まれています');
     });
 
     test('UT-VP-015: nameKanaにひらがな → valid', () => {

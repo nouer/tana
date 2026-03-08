@@ -4,8 +4,8 @@
 # Usage:
 #     bash scripts/build-docs.sh
 #
-# Converts docs/manual.md and docs/promotion.md to HTML files
-# in local_app/ and copies images to local_app/docs-images/.
+# Converts docs/manual.md, docs/promotion.md, docs/usecases_showcase.md
+# to HTML files in local_app/ and copies images to local_app/docs-images/.
 
 set -euo pipefail
 
@@ -35,7 +35,7 @@ else
 fi
 
 # Generate HTML files
-for name in manual promotion; do
+for name in manual promotion usecases_showcase; do
     src="$DOCS_DIR/${name}.md"
     dst="$APP_DIR/${name}.html"
     if [ -f "$src" ]; then

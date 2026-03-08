@@ -6,6 +6,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const childProcess = require('child_process');
+const { createHelpers } = require('./e2e.helpers');
 
 const isE2E = !!process.env.E2E_APP_IP;
 const describeE2E = isE2E ? describe : describe.skip;
@@ -113,252 +114,29 @@ describeE2E('Tana E2E Tests', () => {
             }
         }
         if (!loaded) throw new Error('Could not load app');
+
+        // ヘルパー関数を初期化
+        const helpers = createHelpers(page, baseUrl);
+        sleep = helpers.sleep;
+        reloadPage = helpers.reloadPage;
+        switchToTab = helpers.switchToTab;
+        switchToSubTab = helpers.switchToSubTab;
+        waitForToast = helpers.waitForToast;
+        waitForToastDismiss = helpers.waitForToastDismiss;
+        clearAllData = helpers.clearAllData;
+        loadSampleDataViaJS = helpers.loadSampleDataViaJS;
+        acceptConfirmDialog = helpers.acceptConfirmDialog;
+        cancelConfirmDialog = helpers.cancelConfirmDialog;
+        fillProductForm = helpers.fillProductForm;
+        addProductDirectly = helpers.addProductDirectly;
+        addTransactionDirectly = helpers.addTransactionDirectly;
+        getProductCount = helpers.getProductCount;
+        getTransactionCount = helpers.getTransactionCount;
     });
 
     afterAll(async () => {
         if (browser) await browser.close();
     });
-
-    // =========================================================================
-    // Helper Functions
-    // =========================================================================
-
-    /** ページをリロードし、アプリの初期化完了まで待つ */
-    async function reloadPage() {
-        await page.goto(baseUrl, { waitUntil: 'networkidle0', timeout: 15000 });
-        // DOMContentLoaded の async ハンドラ完了を待つ（window.appReady が設定される）
-        await page.waitForFunction(() => !!window.appReady, { timeout: 15000 });
-        await sleep(500);
-    }
-
-    /** タブ切り替え（JS直接呼び出しで確実に切り替え） */
-    async function switchToTab(tabName) {
-        // tabName: 'dashboard', 'products', 'transactions', 'inventory', 'reports', 'settings'
-        await page.evaluate((name) => {
-            // Ensure all tab contents are hidden first
-            document.querySelectorAll('.tab-content').forEach(el => { el.hidden = true; });
-            const target = document.getElementById('tab-' + name);
-            if (target) target.hidden = false;
-            // Update nav button active states
-            document.querySelectorAll('#main-tab-nav button').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tab === 'tab-' + name || btn.dataset.tab === name);
-            });
-        }, tabName);
-        // Also call switchTab if available (loads tab data)
-        await page.evaluate((name) => {
-            if (typeof switchTab === 'function') {
-                // switchTab expects the name without 'tab-' prefix for content loading
-                switchTab(name);
-            }
-        }, tabName);
-        await sleep(500);
-    }
-
-    /** サブタブ切り替え */
-    async function switchToSubTab(parentTab, subTabName) {
-        await page.evaluate((parent, sub) => {
-            if (typeof switchSubTab === 'function') {
-                switchSubTab(parent, sub);
-            }
-        }, parentTab, subTabName);
-        await sleep(300);
-    }
-
-    /** Toast メッセージを待つ */
-    async function waitForToast(timeout = 5000) {
-        try {
-            await page.waitForFunction(
-                () => {
-                    const toast = document.getElementById('toast');
-                    return toast && toast.style.display === 'block';
-                },
-                { timeout }
-            );
-            const text = await page.$eval('#toast-text', el => el.textContent);
-            return text;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    /** Toast が消えるのを待つ */
-    async function waitForToastDismiss() {
-        try {
-            await page.waitForFunction(
-                () => {
-                    const toast = document.getElementById('toast');
-                    return !toast || toast.style.display === 'none' || toast.style.display === '';
-                },
-                { timeout: 5000 }
-            );
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    /** 短い待機 */
-    function sleep(ms) {
-        return new Promise(r => setTimeout(r, ms));
-    }
-
-    /** IndexedDB を全クリア */
-    async function clearAllData() {
-        await page.evaluate(async () => {
-            if (typeof dbClear === 'function' && window.db) {
-                await dbClear('products');
-                await dbClear('stock_transactions');
-                await dbClear('inventory_counts');
-                await dbClear('app_settings');
-            }
-        });
-        await sleep(300);
-    }
-
-    /** サンプルデータを JS から読み込み */
-    async function loadSampleDataViaJS() {
-        await page.evaluate(async () => {
-            const response = await fetch('sample_data.json');
-            const data = await response.json();
-            if (data.products) {
-                for (const p of data.products) {
-                    try { await dbAdd('products', p); } catch (e) { await dbUpdate('products', p); }
-                }
-            }
-            if (data.stock_transactions) {
-                for (const tx of data.stock_transactions) {
-                    try { await dbAdd('stock_transactions', tx); } catch (e) { await dbUpdate('stock_transactions', tx); }
-                }
-            }
-            if (data.inventory_counts) {
-                for (const c of data.inventory_counts) {
-                    try { await dbAdd('inventory_counts', c); } catch (e) { await dbUpdate('inventory_counts', c); }
-                }
-            }
-            if (data.settings) {
-                if (Array.isArray(data.settings)) {
-                    for (const s of data.settings) {
-                        await dbUpdate('app_settings', s);
-                    }
-                } else {
-                    for (const [key, value] of Object.entries(data.settings)) {
-                        await saveSetting(key, value);
-                    }
-                }
-            }
-        });
-        await sleep(300);
-    }
-
-    /** 確認ダイアログ（カスタム overlay）の OK を押す */
-    async function acceptConfirmDialog() {
-        try {
-            await page.waitForSelector('#confirm-dialog:not([hidden])', { timeout: 3000 });
-            await page.click('#confirm-ok-btn');
-            await sleep(300);
-        } catch (e) {
-            // ダイアログが表示されない場合は無視
-        }
-    }
-
-    /** 確認ダイアログ（カスタム overlay）のキャンセルを押す */
-    async function cancelConfirmDialog() {
-        try {
-            await page.waitForSelector('#confirm-dialog:not([hidden])', { timeout: 3000 });
-            await page.click('#confirm-cancel-btn');
-            await sleep(300);
-        } catch (e) {
-            // ignore
-        }
-    }
-
-    /** 商品フォームを開いてフィールドに入力する */
-    async function fillProductForm(fields) {
-        // フォームが開くまで待つ
-        await page.waitForSelector('#product-form-overlay:not([hidden])', { timeout: 5000 });
-        await sleep(300);
-
-        if (fields.name) {
-            await page.$eval('#product-name', el => el.value = '');
-            await page.type('#product-name', fields.name);
-        }
-        if (fields.nameKana) {
-            await page.$eval('#product-name-kana', el => el.value = '');
-            await page.type('#product-name-kana', fields.nameKana);
-        }
-        if (fields.janCode) {
-            await page.$eval('#product-jan-code', el => el.value = '');
-            await page.type('#product-jan-code', fields.janCode);
-        }
-        if (fields.category) {
-            await page.select('#product-category', fields.category);
-        }
-        if (fields.unit) {
-            await page.$eval('#product-unit', el => el.value = '');
-            await page.type('#product-unit', fields.unit);
-        }
-        if (fields.defaultPrice !== undefined) {
-            await page.$eval('#product-default-price', el => el.value = '');
-            await page.type('#product-default-price', String(fields.defaultPrice));
-        }
-        if (fields.costPrice !== undefined) {
-            await page.$eval('#product-cost-price', el => el.value = '');
-            await page.type('#product-cost-price', String(fields.costPrice));
-        }
-        if (fields.trackExpiry) {
-            const checked = await page.$eval('#product-track-expiry', el => el.checked);
-            if (!checked) await page.click('#product-track-expiry');
-        }
-        if (fields.minStock !== undefined) {
-            await page.$eval('#product-min-stock', el => el.value = '');
-            await page.type('#product-min-stock', String(fields.minStock));
-        }
-        if (fields.supplier) {
-            await page.$eval('#product-supplier', el => el.value = '');
-            await page.type('#product-supplier', fields.supplier);
-        }
-        if (fields.notes) {
-            await page.$eval('#product-notes', el => el.value = '');
-            await page.type('#product-notes', fields.notes);
-        }
-    }
-
-    /** 商品を IndexedDB に直接追加（UI を経由せず高速） */
-    async function addProductDirectly(product) {
-        await page.evaluate(async (p) => {
-            p.id = p.id || (Date.now().toString(36) + Math.random().toString(36).substr(2, 9));
-            p.createdAt = p.createdAt || new Date().toISOString();
-            p.updatedAt = p.updatedAt || new Date().toISOString();
-            p.isActive = p.isActive !== undefined ? p.isActive : true;
-            try { await dbAdd('products', p); } catch (e) { await dbUpdate('products', p); }
-        }, product);
-        await sleep(100);
-    }
-
-    /** 取引を IndexedDB に直接追加 */
-    async function addTransactionDirectly(tx) {
-        await page.evaluate(async (t) => {
-            t.id = t.id || (Date.now().toString(36) + Math.random().toString(36).substr(2, 9));
-            t.createdAt = t.createdAt || new Date().toISOString();
-            try { await dbAdd('stock_transactions', t); } catch (e) { await dbUpdate('stock_transactions', t); }
-        }, tx);
-        await sleep(100);
-    }
-
-    /** DB内の商品数を取得 */
-    async function getProductCount() {
-        return await page.evaluate(async () => {
-            const products = await dbGetAll('products');
-            return products.filter(p => p.isActive !== false).length;
-        });
-    }
-
-    /** DB内の取引数を取得 */
-    async function getTransactionCount() {
-        return await page.evaluate(async () => {
-            const tx = await dbGetAll('stock_transactions');
-            return tx.length;
-        });
-    }
 
     // =========================================================================
     // 1. Basic Startup (E2E-APP-001~003)
