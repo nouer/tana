@@ -5,6 +5,7 @@
 - 「アップデートを確認」ボタンを押すと常に「最新バージョンです」と表示される
 - 実際にはアプリ再起動時に更新が適用されている
 - 更新バナーが表示されない
+- バナーを無視してアプリを閉じ、次回起動時にバナーが再表示されない
 
 ## 根本原因
 
@@ -92,12 +93,17 @@ async function checkForUpdate() {
         }
         // installing 中の場合、完了を待つ
         if (reg.installing) {
+            const installingWorker = reg.installing;
             await new Promise((resolve) => {
-                reg.installing.onstatechange = function() {
+                installingWorker.onstatechange = function() {
                     if (this.state === 'installed' || this.state === 'redundant') {
                         resolve();
                     }
                 };
+                // フォールバック: ハンドラ設定前に状態遷移が完了していた場合
+                if (installingWorker.state === 'installed' || installingWorker.state === 'redundant') {
+                    resolve();
+                }
             });
             if (reg.waiting) {
                 showUpdateBanner();
@@ -154,6 +160,50 @@ function showUpdateBanner() {
     display: block;
 }
 ```
+
+### 5. registerServiceWorker — reg.waiting の起動時チェック
+
+`onupdatefound` は新しい SW のダウンロードが始まったときに発火するが、**既に waiting 状態の SW がある場合は再発火しない**。ユーザーがバナーを無視してアプリを閉じると、次回起動時にバナーが表示されなくなる。
+
+`register().then()` 内で `reg.waiting` を即座にチェックする:
+
+```javascript
+navigator.serviceWorker.register('/sw.js').then(reg => {
+    // 起動時チェック: 前回の訪問で waiting のまま残った SW がないか確認
+    if (reg.waiting && navigator.serviceWorker.controller) {
+        showUpdateBanner();
+    }
+
+    reg.onupdatefound = () => {
+        // ... 既存の onupdatefound ハンドラ
+    };
+});
+```
+
+**ポイント**: `navigator.serviceWorker.controller` のチェックにより、初回インストール時（controller が null）にバナーが誤表示されることを防ぐ。
+
+### 6. registerServiceWorker — onstatechange のレースコンディション
+
+`onupdatefound` 内で `reg.installing` の `onstatechange` を設定するが、SW のインストールが高速に完了した場合、**ハンドラ設定前に `installed` 状態に遷移**しうる。この場合 `onstatechange` は発火せず、バナーが表示されない。
+
+ハンドラ設定直後に `newWorker.state` を即チェックするフォールバックを入れる:
+
+```javascript
+reg.onupdatefound = () => {
+    const newWorker = reg.installing;
+    newWorker.onstatechange = () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+        }
+    };
+    // フォールバック: ハンドラ設定前に installed に遷移していた場合
+    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+        showUpdateBanner();
+    }
+};
+```
+
+**ポイント**: `onstatechange` ハンドラと即時チェックの両方で `showUpdateBanner()` が呼ばれる可能性があるが、バナー表示は冪等な操作なので問題ない。
 
 ## 検証方法
 

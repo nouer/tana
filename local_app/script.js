@@ -2620,6 +2620,11 @@ function openNotificationPage() {
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(reg => {
+            // Bug B修正: 既にwaitingのSWがあればバナー表示
+            if (reg.waiting && navigator.serviceWorker.controller) {
+                showUpdateBanner();
+            }
+
             reg.onupdatefound = () => {
                 const newWorker = reg.installing;
                 newWorker.onstatechange = () => {
@@ -2627,6 +2632,10 @@ function registerServiceWorker() {
                         showUpdateBanner();
                     }
                 };
+                // Bug A修正: ハンドラ設定前に状態遷移が完了していた場合のフォールバック
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    showUpdateBanner();
+                }
             };
         }).catch(err => {
             console.log('Service Worker registration failed:', err);
