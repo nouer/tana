@@ -1768,13 +1768,6 @@ select {
     max-width: 400px;
     aspect-ratio: 1;
     position: relative;
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-#scan-reader video {
-    max-height: 100% !important;
-    object-fit: cover !important;
 }
 
 .scan-guide {
@@ -1782,6 +1775,7 @@ select {
     padding: 16px 16px 0;
     position: relative;
     z-index: 5;
+    background: #000;
 }
 
 .scan-guide-main {
@@ -1807,6 +1801,7 @@ select {
     min-height: 22px;
     position: relative;
     z-index: 5;
+    background: #000;
 }
 
 .scan-close-btn {
