@@ -775,7 +775,10 @@ async function openScanner(callback) {
         { facingMode: 'environment' },
         {
             fps: 10,
-            qrbox: { width: 400, height: 150 },
+            qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                width: Math.min(400, Math.floor(viewfinderWidth * 0.85)),
+                height: Math.min(150, Math.floor(viewfinderHeight * 0.3))
+            }),
             disableFlip: true,
         },
         onScanSuccess,
