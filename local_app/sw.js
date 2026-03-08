@@ -3,7 +3,7 @@
  * アセットキャッシュによる完全オフライン対応
  */
 
-const CACHE_NAME = 'tana-v1.0.0-1772972864';
+const CACHE_NAME = 'tana-v1.0.0-1772974372';
 
 const PRECACHE_ASSETS = [
     '/',
@@ -30,7 +30,6 @@ self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => cache.addAll(PRECACHE_ASSETS))
-            .then(() => self.skipWaiting())
     );
 });
 

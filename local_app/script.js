@@ -2604,19 +2604,24 @@ function registerServiceWorker() {
 
 function showUpdateBanner() {
     const banner = document.getElementById('update-banner');
-    if (banner) banner.hidden = false;
+    if (banner) {
+        banner.hidden = false;
+        banner.classList.add('visible');
+    }
 }
 
 function applyUpdate() {
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then(reg => {
-            if (reg && reg.waiting) {
-                reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            }
-        });
-    }
-    // Reload the page
-    window.location.reload();
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg && reg.waiting) {
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            });
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } else {
+            window.location.reload();
+        }
+    });
 }
 
 async function checkForUpdate() {
@@ -2635,6 +2640,23 @@ async function checkForUpdate() {
             return;
         }
         await reg.update();
+        if (reg.waiting) {
+            showUpdateBanner();
+            return;
+        }
+        if (reg.installing) {
+            await new Promise((resolve) => {
+                reg.installing.onstatechange = function() {
+                    if (this.state === 'installed' || this.state === 'redundant') {
+                        resolve();
+                    }
+                };
+            });
+            if (reg.waiting) {
+                showUpdateBanner();
+                return;
+            }
+        }
         showToast('最新バージョンです', 'success');
     } catch (err) {
         showToast('更新の確認に失敗しました', 'error');
