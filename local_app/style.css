@@ -1770,11 +1770,32 @@ select {
     position: relative;
 }
 
-.scan-status {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 14px;
+.scan-guide {
     text-align: center;
-    padding: 16px;
+    padding: 16px 16px 0;
+}
+
+.scan-guide-main {
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0 0 8px;
+}
+
+.scan-guide-sub {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.scan-status {
+    color: #ffc107;
+    font-size: 14px;
+    font-weight: bold;
+    text-align: center;
+    padding: 8px 16px;
+    min-height: 22px;
 }
 
 .scan-close-btn {

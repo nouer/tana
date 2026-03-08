@@ -654,7 +654,11 @@
   <div id="scan-overlay" class="overlay" hidden>
     <div class="overlay-content overlay-fullscreen">
       <div id="scan-reader" class="scan-reader"></div>
-      <p id="scan-status" class="scan-status">バーコードをスキャン枠に合わせてください（タップでフォーカス調整）</p>
+      <div class="scan-guide">
+        <p class="scan-guide-main">バーコードを枠内に合わせてください</p>
+        <p class="scan-guide-sub">読み取れない場合は画面をタップしてフォーカスを調整してください。<br>バーコードとカメラの距離を10〜20cmに保つと認識しやすくなります。</p>
+      </div>
+      <p id="scan-status" class="scan-status"></p>
       <button type="button" id="scan-close-btn" class="overlay-close-btn scan-close-btn" aria-label="スキャンを閉じる">&times;</button>
     </div>
   </div>

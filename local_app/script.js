@@ -856,7 +856,7 @@ function setupTapToFocus() {
             if (statusEl) {
                 statusEl.textContent = 'フォーカスを調整中...';
                 setTimeout(() => {
-                    statusEl.textContent = 'バーコードをスキャン枠に合わせてください';
+                    statusEl.textContent = '';
                 }, 1500);
             }
         } catch (e) {
