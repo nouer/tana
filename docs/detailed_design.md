@@ -321,6 +321,14 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | 削除ボタン | 「写真を削除」テキストボタン。プレビューとデータをクリア |
 | 保存形式 | base64文字列（data:image/jpeg;base64,...） |
 
+**動的表示制御:**
+- `product-track-expiry` チェックボックスの `change` イベントで `expiry-alert-days-group`（期限アラート日数フィールドの親要素）の表示/非表示を切り替える
+- チェックON: `expiry-alert-days-group` を表示、チェックOFF: 非表示
+
+**保存・読み込み:**
+- `saveProduct()` は `expiryAlertDays` を含む全フィールドを商品データとして保存する
+- 編集時の `openProductForm(product)` では `expiryAlertDays` の値をフォームに復元し、`trackExpiry` の状態に応じて `expiry-alert-days-group` の表示を制御する
+
 **ボタン:**
 - 「保存」ボタン: `primary-btn` クラス → `saveProduct()` 実行
 - 「キャンセル」ボタン: `secondary-btn` クラス → `closeProductForm()` 実行
@@ -341,7 +349,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | 商品名 | h2見出し |
 | ふりがな | 商品名の下にテキスト表示 |
 | 在庫数 | `stock-badge` クラスで色分け表示（stock-ok/stock-low/stock-out） |
-| 詳細テーブル | 商品コード、JANコード、カテゴリ（日本語表示）、単位、最低在庫数、仕入先、単価、期限管理、備考 |
+| 詳細テーブル | 商品コード、JANコード、カテゴリ（日本語表示）、単位、最低在庫数、仕入先、単価、期限管理、期限アラート日数（`trackExpiry` が true の場合のみ表示）、備考 |
 
 **カテゴリ表示ルール:**
 
@@ -377,10 +385,12 @@ script.js 内のUI操作時に行われる追加バリデーション:
 
 | data-subtab | ラベル | 初期状態 |
 |-------------|--------|----------|
-| receive | 入庫 | active |
+| receive | 入庫 | active（デフォルト。`defaultTransactionType` 設定で変更可） |
 | use | 使用 | - |
 | sell | 販売 | - |
 | history | 履歴 | - |
+
+- `loadTransactionTab()` は `defaultTransactionType` モジュールレベル変数を参照し、初期表示するサブタブを決定する（ハードコードの `'receive'` ではなく設定値を使用）
 
 サブタブのスタイル: アンダーライン型（メインタブと統一）、`border-bottom: 2px solid var(--primary)`、アクティブ時はテキスト色 `var(--primary)` + 下線
 
@@ -467,7 +477,7 @@ script.js 内のUI操作時に行われる追加バリデーション:
 **スキャン成功時の処理:**
 1. デバウンス: 同一コードは2秒以内の再読み取りを無視
 2. JANコード検証（`validateJanCode`）
-3. スキャン音再生（Web Audio API、1000Hz、0.1秒間）
+3. スキャン音再生（`playScanSound()` — `scanSoundEnabled` 設定が true の場合のみ再生。Web Audio API、1000Hz、0.1秒間）
 4. コールバック関数を実行
 5. スキャナーを停止・閉じる
 
@@ -602,11 +612,14 @@ script.js 内のUI操作時に行われる追加バリデーション:
 | フィールドID | ラベル | type | 備考 |
 |-------------|--------|------|------|
 | default-expiry-alert-days | 使用期限アラート日数（デフォルト） | number | min=1、初期値: 30 |
-| scan-sound-enabled | スキャン時に音を鳴らす | checkbox | - |
-| default-transaction-type | デフォルトの取引種別 | select | 入庫/使用/販売 |
+| scan-sound-enabled | スキャン時に音を鳴らす | checkbox | デフォルト: true |
+| default-transaction-type | デフォルトの取引種別 | select | 入庫/使用/販売。デフォルト: 入庫（receive） |
 
 - 保存先: `app_settings` ストア、キー: `inventory_settings`
 - 「在庫管理設定を保存」ボタンで一括保存
+- `saveInventorySettings()` は `scan-sound-enabled`、`default-transaction-type` を含む全フィールドを `inventory_settings` に保存し、モジュールレベル変数（`scanSoundEnabled`、`defaultTransactionType`）も同時に更新する
+- アプリ起動時に `initAppSettings()` が呼ばれ、`inventory_settings` から `scanSoundEnabled`・`defaultTransactionType` をモジュールレベル変数に読み込む。設定未保存の場合はデフォルト値（`scanSoundEnabled: true`、`defaultTransactionType: 'receive'`）を使用する
+- 設定タブ表示時にも `inventory_settings` から各フォームフィールドの値を復元する
 
 ### 9.3 お知らせ
 

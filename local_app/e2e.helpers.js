@@ -187,6 +187,10 @@ function createHelpers(page, baseUrl) {
         if (fields.trackExpiry) {
             const checked = await page.$eval('#product-track-expiry', el => el.checked);
             if (!checked) await page.click('#product-track-expiry');
+            await sleep(300); // Wait for change event to show expiryAlertDays group
+        }
+        if (fields.expiryAlertDays !== undefined) {
+            await page.$eval('#product-expiry-alert-days', (el, v) => el.value = v, String(fields.expiryAlertDays));
         }
         if (fields.minStock !== undefined) {
             await page.$eval('#product-min-stock', el => el.value = '');

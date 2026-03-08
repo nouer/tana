@@ -36,6 +36,8 @@ let scanCallback = null;
 let confirmResolve = null;
 let _pendingNotificationHash = null;
 let _toastTimer = null;
+let scanSoundEnabled = true;
+let defaultTransactionType = 'receive';
 
 // =============================================================================
 // 3. IndexedDB Setup
@@ -471,6 +473,10 @@ function openProductForm(productId) {
             const trackExpiryEl = document.getElementById('product-track-expiry');
             if (trackExpiryEl) trackExpiryEl.checked = product.trackExpiry || false;
 
+            setVal('product-expiry-alert-days', product.expiryAlertDays || 30);
+            const expiryGroup = document.getElementById('expiry-alert-days-group');
+            if (expiryGroup) expiryGroup.hidden = !product.trackExpiry;
+
             // Show photo preview if exists
             if (product.photo) {
                 const preview = document.getElementById('photo-preview');
@@ -528,6 +534,7 @@ async function saveProduct() {
         trackExpiry: document.getElementById('product-track-expiry')
             ? document.getElementById('product-track-expiry').checked
             : false,
+        expiryAlertDays: parseInt(getValue('product-expiry-alert-days')) || 30,
         isActive: true,
     };
 
@@ -629,6 +636,7 @@ async function showProductDetail(productId) {
         + '<tr><th>販売価格</th><td>' + (product.defaultPrice ? product.defaultPrice.toLocaleString() + ' 円' : '-') + '</td></tr>'
         + '<tr><th>仕入価格</th><td>' + (product.costPrice ? product.costPrice.toLocaleString() + ' 円' : '-') + '</td></tr>'
         + '<tr><th>期限管理</th><td>' + (product.trackExpiry ? 'あり' : 'なし') + '</td></tr>'
+        + (product.trackExpiry ? '<tr><th>期限アラート日数</th><td>' + (product.expiryAlertDays || 30) + ' 日</td></tr>' : '')
         + '<tr><th>備考</th><td>' + esc(product.notes || '') + '</td></tr>'
         + '</table>'
         + '</div>';
@@ -933,6 +941,7 @@ function onScanSuccess(decodedText) {
 }
 
 function playScanSound() {
+    if (!scanSoundEnabled) return;
     try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
@@ -988,7 +997,7 @@ async function loadTransactionTab() {
 
     // Set default sub-tab
     if (!currentSubTab['transactions']) {
-        currentSubTab['transactions'] = 'receive';
+        currentSubTab['transactions'] = defaultTransactionType;
     }
     switchSubTab('transactions', currentSubTab['transactions']);
 }
@@ -2132,6 +2141,14 @@ async function loadVarianceReport() {
 // 15. Settings
 // =============================================================================
 
+async function initAppSettings() {
+    const invSettings = await getSetting('inventory_settings');
+    if (invSettings) {
+        scanSoundEnabled = invSettings.scanSoundEnabled !== false;
+        defaultTransactionType = invSettings.defaultTransactionType || 'receive';
+    }
+}
+
 async function loadSettings() {
     // Load business info (旧 clinic_info からのマイグレーション)
     let businessInfo = await getSetting('business_info');
@@ -2167,6 +2184,14 @@ async function loadSettings() {
         if (el) el.value = invSettings.lowStockThreshold || '';
         const expiryEl = document.getElementById('default-expiry-alert-days');
         if (expiryEl) expiryEl.value = invSettings.expiryWarningDays || 30;
+
+        scanSoundEnabled = invSettings.scanSoundEnabled !== false;
+        const scanSoundEl = document.getElementById('scan-sound-enabled');
+        if (scanSoundEl) scanSoundEl.checked = scanSoundEnabled;
+
+        defaultTransactionType = invSettings.defaultTransactionType || 'receive';
+        const defaultTxEl = document.getElementById('default-transaction-type');
+        if (defaultTxEl) defaultTxEl.value = defaultTransactionType;
     }
 
     // Load notification setting
@@ -2225,11 +2250,18 @@ async function saveBusinessInfo() {
 async function saveInventorySettings() {
     const thresholdEl = document.getElementById('setting-low-stock-threshold');
     const expiryEl = document.getElementById('default-expiry-alert-days');
+    const scanSoundEl = document.getElementById('scan-sound-enabled');
+    const defaultTxEl = document.getElementById('default-transaction-type');
 
     const invSettings = {
         lowStockThreshold: thresholdEl ? parseInt(thresholdEl.value) || 0 : 0,
         expiryWarningDays: expiryEl ? parseInt(expiryEl.value) || 30 : 30,
+        scanSoundEnabled: scanSoundEl ? scanSoundEl.checked : true,
+        defaultTransactionType: defaultTxEl ? defaultTxEl.value : 'receive',
     };
+
+    scanSoundEnabled = invSettings.scanSoundEnabled;
+    defaultTransactionType = invSettings.defaultTransactionType;
 
     await saveSetting('inventory_settings', invSettings);
     showToast('在庫設定を保存しました', 'success');
@@ -2780,6 +2812,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         photoClearBtn.addEventListener('click', clearPhoto);
     }
 
+    // Track expiry checkbox toggles alert days group visibility
+    const trackExpiryCheckbox = document.getElementById('product-track-expiry');
+    if (trackExpiryCheckbox) {
+        trackExpiryCheckbox.addEventListener('change', () => {
+            const group = document.getElementById('expiry-alert-days-group');
+            if (group) group.hidden = !trackExpiryCheckbox.checked;
+        });
+    }
+
     // Product detail close
     const productDetailCloseBtn = document.getElementById('close-product-detail');
     if (productDetailCloseBtn) {
@@ -3064,6 +3105,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     });
+
+    // Load app settings (scan sound, default transaction type) before tab switch
+    await initAppSettings();
 
     // Check URL params for initial tab
     const params = new URLSearchParams(window.location.search);

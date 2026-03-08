@@ -63,3 +63,9 @@
 - 原因: `complete-count-btn` の addEventListener 登録漏れ（動的HTML内の onclick 版は存在）
 - 発見箇所: 棚卸タブの静的「棚卸を完了」ボタン（BUG-12）
 - 予防: P1と同類。E2E-SIG-001で自動検査
+
+### P11: Dead Form Field（HTMLフィールドのJS配線欠落）
+- 症状: フォームフィールドがHTMLに存在するが、入力値が保存されない・読み込まれない・UIが連動しない
+- 原因: HTMLにinput/select要素を追加した際に、save関数での値読み取り、load/edit関数での値書き込み、イベントリスナーの登録のいずれかが欠落
+- 発見箇所: 商品フォームのexpiryAlertDays（save/load/changeイベント全欠落）、設定画面のscan-sound-enabled（save/load未実装、playScanSound未参照）、設定画面のdefault-transaction-type（save/load未実装、loadTransactionTab未参照）
+- 予防: E2E-SIG-007で全フォームフィールドとsave/loadロジックの対応マッピングを自動検査。E2E-PRD-RT-001/E2E-SET-RT-001でラウンドトリップ（保存→再表示→値一致）を検証

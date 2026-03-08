@@ -250,6 +250,7 @@
 | E2E-SET-004 | アプリバージョンとビルド日時が表示される | #app-version, #app-build-timeが空でない |
 | E2E-SET-005 | アップデート確認ボタンがクリック可能でトーストが表示される | ボタンクリックでトーストが表示される（SW未対応環境では警告、未登録環境では「最新バージョンです」） |
 | E2E-SET-006 | お知らせボタンがクリック可能 | #btn-open-notificationクリックでwindow.openが呼ばれる |
+| E2E-SET-RT-001 | 設定フォーム全フィールドの保存→リロード→値保持 | 在庫設定（lowStockThreshold, expiryWarningDays, scanSoundEnabled, defaultTransactionType）をDBに保存後、ページリロードして設定画面の各UIフィールドに正しく反映されることを検証。取引タブのデフォルトサブタブも検証。 |
 
 ### 2.4 商品管理 (E2E-PRD)
 
@@ -263,6 +264,7 @@
 | E2E-PRD-006 | 商品名で検索 | 検索フィールドに入力 → 一致する商品のみ表示 |
 | E2E-PRD-007 | JANコードで検索 | JANコード入力 → 対応商品のみ表示 |
 | E2E-PRD-008 | カテゴリフィルター | consumableフィルター → consumable商品のみ表示 |
+| E2E-PRD-RT-001 | 商品フォーム全フィールドの保存→再編集→値保持 | 商品を全フィールド入力して登録後、編集画面を再度開いて全フィールドの値が保持されていることを検証するラウンドトリップテスト。対象: name, nameKana, janCode, category, unit, defaultPrice, costPrice, trackExpiry, expiryAlertDays, minStock, supplier, notes |
 
 ### 2.5 入出庫管理 (E2E-TXN)
 
@@ -364,6 +366,7 @@
 | E2E-SIG-004 | 全タブに内部値が表示されない（自動探索版） | undefined/NaN/consumable/retail等の内部値が非表示 |
 | E2E-SIG-005 | レポートテーブルの全列にデータが存在する | 全レポートの全列セルにデータが存在 |
 | E2E-SIG-006 | 全オーバーレイの閉じるボタンが機能する | 各オーバーレイの閉じるボタンで非表示になる |
+| E2E-SIG-007 | 全フォームフィールドがsave/loadロジックに配線されている | 商品フォームと設定画面の全input/select/textarea要素が、定義されたフィールドマッピングに含まれていることを検証する構造的整合性テスト。新フィールド追加時にマッピング漏れを自動検出する。 |
 
 ---
 

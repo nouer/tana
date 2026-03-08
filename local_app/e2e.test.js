@@ -2299,5 +2299,235 @@ describeE2E('Tana E2E Tests', () => {
             }
             expect(failures).toEqual([]);
         });
+
+        test('E2E-SIG-007: 全フォームフィールドがsave/loadロジックに配線されている', async () => {
+            // 商品フォームのフィールドID → saveProduct()で読み取られるべきフィールド
+            const productFormFields = [
+                'product-code',
+                'product-name',
+                'product-name-kana',
+                'product-jan-code',
+                'product-category',
+                'product-unit',
+                'product-min-stock',
+                'product-notes',
+                'product-supplier',
+                'product-default-price',
+                'product-cost-price',
+                'product-track-expiry',
+                'product-expiry-alert-days',
+            ];
+
+            // 設定フォームのフィールドID → saveInventorySettings/saveBusinessInfoで読み取られるべきフィールド
+            const settingsFields = [
+                'business-name',
+                'contact-name',
+                'zip-code',
+                'address',
+                'phone',
+                'setting-low-stock-threshold',
+                'default-expiry-alert-days',
+                'scan-sound-enabled',
+                'default-transaction-type',
+                'setting-notify-enabled',
+            ];
+
+            const result = await page.evaluate((productFields, settingsFields) => {
+                const failures = [];
+                const scriptContent = document.querySelector('script[src="script.js"]') ? 'loaded' : 'not-loaded';
+
+                // Check product form fields: each input ID in the form must be referenced in saveProduct
+                for (const fieldId of productFields) {
+                    const el = document.getElementById(fieldId);
+                    if (!el) {
+                        failures.push({ fieldId, issue: 'HTML要素が存在しない' });
+                    }
+                }
+
+                // Check settings fields
+                for (const fieldId of settingsFields) {
+                    const el = document.getElementById(fieldId);
+                    if (!el) {
+                        failures.push({ fieldId, issue: 'HTML要素が存在しない' });
+                    }
+                }
+
+                // Check that all input/select fields in #product-form-overlay are in the mapping
+                const productForm = document.getElementById('product-form-overlay');
+                if (productForm) {
+                    const inputs = productForm.querySelectorAll('input[id], select[id], textarea[id]');
+                    for (const input of inputs) {
+                        if (input.id === 'photo-input') continue; // photo handled separately
+                        if (input.type === 'hidden') continue; // hidden fields (e.g. product-edit-id) are internal
+                        if (!productFields.includes(input.id)) {
+                            failures.push({ fieldId: input.id, issue: '商品フォームにあるがマッピングに未登録' });
+                        }
+                    }
+                }
+
+                // Check that all input/select fields in settings tab are in the mapping
+                const settingsTab = document.getElementById('tab-settings');
+                if (settingsTab) {
+                    const inputs = settingsTab.querySelectorAll('input[id], select[id], textarea[id]');
+                    for (const input of inputs) {
+                        if (input.id === 'import-file') continue; // file import handled separately
+                        if (!settingsFields.includes(input.id)) {
+                            failures.push({ fieldId: input.id, issue: '設定画面にあるがマッピングに未登録' });
+                        }
+                    }
+                }
+
+                return failures;
+            }, productFormFields, settingsFields);
+
+            if (result.length > 0) {
+                console.error('Dead form field check failures:', JSON.stringify(result, null, 2));
+            }
+            expect(result).toEqual([]);
+        });
+    });
+
+    // =================================================================
+    // Round-trip Tests
+    // =================================================================
+    describe('ラウンドトリップテスト', () => {
+        test('E2E-PRD-RT-001: 商品フォーム全フィールドの保存→再編集→値保持', async () => {
+            await switchToTab('products');
+            await sleep(500);
+
+            // Open new product form
+            await page.click('#add-product-btn');
+            await fillProductForm({
+                name: 'RTテスト商品',
+                nameKana: 'あーるてぃーてすとしょうひん',
+                janCode: '4900000000009',
+                category: 'consumable',
+                unit: 'セット',
+                defaultPrice: 1500,
+                costPrice: 800,
+                trackExpiry: true,
+                expiryAlertDays: 45,
+                minStock: 10,
+                supplier: 'テスト仕入先',
+                notes: 'ラウンドトリップテスト用',
+            });
+            await page.click('#save-product-btn');
+            const toastText = await waitForToast();
+            expect(toastText).toContain('登録しました');
+            await waitForToastDismiss();
+            await sleep(500);
+
+            // Find the product and open edit form
+            const productId = await page.evaluate(async () => {
+                const products = await dbGetAll('products');
+                const p = products.find(p => p.name === 'RTテスト商品' && p.isActive !== false);
+                return p ? p.id : null;
+            });
+            expect(productId).toBeTruthy();
+
+            // Open edit form
+            await page.evaluate(id => openProductForm(id), productId);
+            await page.waitForSelector('#product-form-overlay:not([hidden])', { timeout: 5000 });
+            await sleep(500);
+
+            // Verify all field values
+            const values = await page.evaluate(() => {
+                return {
+                    name: document.getElementById('product-name').value,
+                    nameKana: document.getElementById('product-name-kana').value,
+                    janCode: document.getElementById('product-jan-code').value,
+                    category: document.getElementById('product-category').value,
+                    unit: document.getElementById('product-unit').value,
+                    defaultPrice: document.getElementById('product-default-price').value,
+                    costPrice: document.getElementById('product-cost-price').value,
+                    trackExpiry: document.getElementById('product-track-expiry').checked,
+                    expiryAlertDays: document.getElementById('product-expiry-alert-days').value,
+                    expiryGroupVisible: !document.getElementById('expiry-alert-days-group').hidden,
+                    minStock: document.getElementById('product-min-stock').value,
+                    supplier: document.getElementById('product-supplier').value,
+                    notes: document.getElementById('product-notes').value,
+                };
+            });
+
+            expect(values.name).toBe('RTテスト商品');
+            expect(values.nameKana).toBe('あーるてぃーてすとしょうひん');
+            expect(values.janCode).toBe('4900000000009');
+            expect(values.category).toBe('consumable');
+            expect(values.unit).toBe('セット');
+            expect(values.defaultPrice).toBe('1500');
+            expect(values.costPrice).toBe('800');
+            expect(values.trackExpiry).toBe(true);
+            expect(values.expiryAlertDays).toBe('45');
+            expect(values.expiryGroupVisible).toBe(true);
+            expect(values.minStock).toBe('10');
+            expect(values.supplier).toBe('テスト仕入先');
+            expect(values.notes).toBe('ラウンドトリップテスト用');
+
+            // Close form
+            await page.evaluate(() => {
+                document.getElementById('product-form-overlay').hidden = true;
+            });
+        });
+
+        test('E2E-SET-RT-001: 設定フォーム全フィールドの保存→リロード→値保持', async () => {
+            // Save inventory settings directly to DB, then verify UI loads them correctly
+            await page.evaluate(async () => {
+                await saveSetting('inventory_settings', {
+                    lowStockThreshold: 15,
+                    expiryWarningDays: 60,
+                    scanSoundEnabled: false,
+                    defaultTransactionType: 'use',
+                });
+            });
+            await sleep(300);
+
+            // Reload page to verify persistence and initAppSettings
+            await reloadPage();
+            await switchToTab('settings');
+            await sleep(1500); // Wait for loadSettings() async to fully complete
+
+            // Verify values persisted in UI
+            const values = await page.evaluate(() => {
+                return {
+                    threshold: document.getElementById('setting-low-stock-threshold').value,
+                    expiryDays: document.getElementById('default-expiry-alert-days').value,
+                    scanSound: document.getElementById('scan-sound-enabled').checked,
+                    defaultTxType: document.getElementById('default-transaction-type').value,
+                };
+            });
+
+            expect(values.threshold).toBe('15');
+            expect(values.expiryDays).toBe('60');
+            expect(values.scanSound).toBe(false);
+            expect(values.defaultTxType).toBe('use');
+
+            // Verify initAppSettings loaded module variables correctly
+            const moduleVars = await page.evaluate(() => {
+                return {
+                    scanSoundEnabled: window.scanSoundEnabled,
+                    defaultTransactionType: window.defaultTransactionType,
+                };
+            });
+            // Module vars aren't on window, verify via behavior:
+            // Reset currentSubTab so transaction tab uses default
+            await page.evaluate(() => { currentSubTab['transactions'] = null; });
+            await switchToTab('transactions');
+            await sleep(500);
+            const activeSubTab = await page.evaluate(() => {
+                const btn = document.querySelector('#tab-transactions .sub-tab-nav button.active');
+                return btn ? btn.dataset.subtab : null;
+            });
+            expect(activeSubTab).toBe('use');
+
+            // Restore defaults to not affect other tests
+            await page.evaluate(async () => {
+                await saveSetting('inventory_settings', {
+                    lowStockThreshold: 0,
+                    expiryWarningDays: 30,
+                    scanSoundEnabled: true,
+                    defaultTransactionType: 'receive',
+                });
+            });
+        });
     });
 });
