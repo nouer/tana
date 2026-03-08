@@ -4,4 +4,3 @@ test-results/
 *.log
 .DS_Store
 .env
-local_app/icons/*.png
