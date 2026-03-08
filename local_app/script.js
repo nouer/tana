@@ -774,23 +774,48 @@ async function openScanner(callback) {
     html5QrcodeScanner.start(
         { facingMode: 'environment' },
         {
-            fps: 10,
+            fps: 15,
             qrbox: (viewfinderWidth, viewfinderHeight) => ({
                 width: Math.min(400, Math.floor(viewfinderWidth * 0.85)),
                 height: Math.min(150, Math.floor(viewfinderHeight * 0.3))
             }),
             disableFlip: true,
+            videoConstraints: {
+                facingMode: { exact: 'environment' },
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                advanced: [{ focusMode: 'continuous' }]
+            }
         },
         onScanSuccess,
         (errorMessage) => {
             // Scan error - ignore, keep scanning
         }
     ).then(() => {
-        enableAutofocus();
+        reinforceAutofocus();
         setupTapToFocus();
     }).catch(err => {
-        console.error('Scanner start failed:', err);
-        showToast('カメラの起動に失敗しました', 'error');
+        // videoConstraints 失敗時はフォールバック（focusMode非対応端末）
+        console.warn('Scanner start with videoConstraints failed, retrying:', err);
+        html5QrcodeScanner.start(
+            { facingMode: 'environment' },
+            {
+                fps: 15,
+                qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                    width: Math.min(400, Math.floor(viewfinderWidth * 0.85)),
+                    height: Math.min(150, Math.floor(viewfinderHeight * 0.3))
+                }),
+                disableFlip: true,
+            },
+            onScanSuccess,
+            (errorMessage) => {}
+        ).then(() => {
+            reinforceAutofocus();
+            setupTapToFocus();
+        }).catch(err2 => {
+            console.error('Scanner start failed:', err2);
+            showToast('カメラの起動に失敗しました', 'error');
+        });
     });
 }
 
@@ -802,16 +827,44 @@ function getScannerVideoTrack() {
     return null;
 }
 
-function enableAutofocus() {
+function reinforceAutofocus() {
     const track = getScannerVideoTrack();
     if (!track) return;
     try {
         const capabilities = track.getCapabilities();
-        if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-            track.applyConstraints({
-                advanced: [{ focusMode: 'continuous' }]
+        if (!capabilities.focusMode) return;
+        if (!capabilities.focusMode.includes('continuous')) return;
+
+        // 直接指定を試行し、失敗なら advanced 構文にフォールバック
+        track.applyConstraints({ focusMode: 'continuous' })
+            .catch(() => track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }))
+            .catch(() => {});
+    } catch (e) {
+        // フォーカス制御非対応のカメラは無視
+    }
+}
+
+function triggerRefocus() {
+    const track = getScannerVideoTrack();
+    if (!track) return;
+    try {
+        const capabilities = track.getCapabilities();
+        if (!capabilities.focusMode) return;
+
+        // manual に切り替えてすぐ continuous に戻すことで再フォーカスを強制
+        const restoreContinuous = () => {
+            track.applyConstraints({ focusMode: 'continuous' })
+                .catch(() => track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }))
+                .catch(() => {});
+        };
+
+        track.applyConstraints({ focusMode: 'manual' })
+            .then(() => setTimeout(restoreContinuous, 100))
+            .catch(() => {
+                track.applyConstraints({ advanced: [{ focusMode: 'manual' }] })
+                    .then(() => setTimeout(restoreContinuous, 100))
+                    .catch(() => {});
             });
-        }
     } catch (e) {
         // フォーカス制御非対応のカメラは無視
     }
@@ -823,47 +876,11 @@ function setupTapToFocus() {
     scannerEl._tapFocusAttached = true;
 
     scannerEl.addEventListener('click', () => {
-        const track = getScannerVideoTrack();
-        if (!track) return;
-        try {
-            const capabilities = track.getCapabilities();
-            if (!capabilities.focusMode) return;
-
-            // single-shot でフォーカスを合わせ直し、その後 continuous に戻す
-            if (capabilities.focusMode.includes('single-shot')) {
-                track.applyConstraints({
-                    advanced: [{ focusMode: 'single-shot' }]
-                }).then(() => {
-                    setTimeout(() => {
-                        if (capabilities.focusMode.includes('continuous')) {
-                            track.applyConstraints({
-                                advanced: [{ focusMode: 'continuous' }]
-                            }).catch(() => {});
-                        }
-                    }, 1500);
-                }).catch(() => {});
-            } else if (capabilities.focusMode.includes('manual') && capabilities.focusMode.includes('continuous')) {
-                // single-shot 非対応: manual→continuous で再フォーカス
-                track.applyConstraints({
-                    advanced: [{ focusMode: 'manual' }]
-                }).then(() => {
-                    setTimeout(() => {
-                        track.applyConstraints({
-                            advanced: [{ focusMode: 'continuous' }]
-                        }).catch(() => {});
-                    }, 500);
-                }).catch(() => {});
-            }
-
-            const statusEl = document.getElementById('scan-status');
-            if (statusEl) {
-                statusEl.textContent = 'フォーカスを調整中...';
-                setTimeout(() => {
-                    statusEl.textContent = '';
-                }, 1500);
-            }
-        } catch (e) {
-            // フォーカス制御非対応のカメラは無視
+        triggerRefocus();
+        const statusEl = document.getElementById('scan-status');
+        if (statusEl) {
+            statusEl.textContent = 'フォーカスを調整中...';
+            setTimeout(() => { statusEl.textContent = ''; }, 1000);
         }
     });
 }
