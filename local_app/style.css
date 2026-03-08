@@ -982,6 +982,14 @@ select {
     font-size: 13px;
 }
 
+.clickable-item {
+    cursor: pointer;
+}
+
+.clickable-item:active {
+    opacity: 0.7;
+}
+
 .alert-item.alert-danger {
     border-left-color: var(--danger);
     background: var(--danger-bg);
@@ -1476,6 +1484,14 @@ select {
 
 .report-table tbody tr:hover {
     background: var(--primary-bg);
+}
+
+.report-table tbody tr.clickable-row {
+    cursor: pointer;
+}
+
+.report-table tbody tr.clickable-row:active {
+    background: var(--primary-light, #dbeafe);
 }
 
 .report-table tbody tr:last-child td {

@@ -1234,7 +1234,7 @@ function renderTransactionItem(transaction, productName) {
     const sign = transaction.quantity >= 0 ? '+' : '-';
     const qtyClass = transaction.quantity >= 0 ? 'qty-plus' : 'qty-minus';
 
-    let html = '<div class="transaction-item ' + borderClass + '">'
+    let html = '<div class="transaction-item ' + borderClass + ' clickable-item" data-product-id="' + (transaction.productId || '') + '">'
         + '<div class="tx-info">'
         + '<div class="tx-product-name">' + esc(productName) + '</div>'
         + '<div class="tx-meta">'
@@ -1704,7 +1704,7 @@ async function loadDashboard() {
         } else {
             let html = '<div class="alert-list">';
             lowStockAlerts.forEach(item => {
-                html += '<div class="alert-item alert-warning">'
+                html += '<div class="alert-item alert-warning clickable-item" data-product-id="' + item.id + '">'
                     + '<div class="alert-product">' + esc(item.name) + '</div>'
                     + '<div class="alert-detail">'
                     + '現在: ' + item.currentStock + ' ' + esc(item.unit || '個')
@@ -1769,7 +1769,7 @@ async function loadDashboard() {
             let html = '<div class="alert-list">';
             expiryAlerts.forEach(item => {
                 const productName = item.productName || item.name || '';
-                html += '<div class="alert-item alert-expiry">'
+                html += '<div class="alert-item alert-expiry clickable-item" data-product-id="' + item.productId + '">'
                     + '<div class="alert-product">' + esc(productName) + '</div>'
                     + '<div class="alert-detail">'
                     + '期限: ' + esc(item.expiryDate)
@@ -1922,7 +1922,7 @@ async function loadStockReport() {
             : row.status === 'low' ? '不足' : '正常';
         const statusClass = 'status-' + row.status;
         const categoryLabel = TanaCalc ? TanaCalc.getCategoryLabel(row.category) : (row.category || '');
-        html += '<tr>'
+        html += '<tr class="clickable-row" data-product-id="' + (row.productId || '') + '">'
             + '<td>' + esc(row.productCode || '') + '</td>'
             + '<td>' + esc(row.productName || '') + '</td>'
             + '<td>' + esc(categoryLabel) + '</td>'
@@ -2000,7 +2000,7 @@ async function loadHistoryReport() {
     reportData.forEach(row => {
         const typeLabel = typeLabels[row.transactionType] || row.transactionType;
         const sign = row.quantity >= 0 ? '+' : '';
-        html += '<tr>'
+        html += '<tr class="clickable-row" data-product-id="' + (row.productId || '') + '">'
             + '<td>' + esc(row.date || '') + '</td>'
             + '<td>' + esc(row.productName || '') + '</td>'
             + '<td>' + typeLabel + '</td>'
@@ -2047,7 +2047,7 @@ async function loadExpiryReport() {
         };
         const statusLabel = statusLabels[row.status] || row.status;
         const statusClass = 'expiry-' + row.status;
-        html += '<tr class="' + statusClass + '">'
+        html += '<tr class="' + statusClass + ' clickable-row" data-product-id="' + (row.productId || '') + '">'
             + '<td>' + esc(row.productName || '') + '</td>'
             + '<td>' + esc(row.lotNumber || '') + '</td>'
             + '<td>' + esc(row.expiryDate || '') + '</td>'
@@ -2115,7 +2115,7 @@ async function loadVarianceReport() {
         const diff = (item.actualQuantity || 0) - (item.systemQuantity || 0);
         const diffSign = diff > 0 ? '+' : '';
         const diffClass = diff !== 0 ? 'variance-diff' : '';
-        html += '<tr class="' + diffClass + '">'
+        html += '<tr class="' + diffClass + ' clickable-row" data-product-id="' + (item.productId || '') + '">'
             + '<td>' + esc(item.productName || '') + '</td>'
             + '<td>' + esc(item.productCode || '') + '</td>'
             + '<td>' + (item.systemQuantity || 0) + '</td>'
@@ -2839,6 +2839,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sampleDataBtn = document.getElementById('load-sample-data-btn');
     if (sampleDataBtn) {
         sampleDataBtn.addEventListener('click', loadSampleData);
+    }
+
+    // --- Clickable item delegation (dashboard & reports → product detail) ---
+    document.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-product-id]');
+        if (!item) return;
+        const productId = item.dataset.productId;
+        if (!productId) return;
+        showProductDetail(productId);
+    });
+
+    // --- Summary card navigation ---
+    const totalProductsCard = document.getElementById('dashboard-total-products');
+    if (totalProductsCard) {
+        totalProductsCard.closest('.summary-item').classList.add('clickable-item');
+        totalProductsCard.closest('.summary-item').addEventListener('click', () => {
+            switchTab('products');
+        });
+    }
+    const totalStockCard = document.getElementById('dashboard-total-stock');
+    if (totalStockCard) {
+        totalStockCard.closest('.summary-item').classList.add('clickable-item');
+        totalStockCard.closest('.summary-item').addEventListener('click', () => {
+            switchTab('reports');
+            switchSubTab('reports', 'report-stock');
+        });
     }
 
     // Quick action button listeners (dashboard)
