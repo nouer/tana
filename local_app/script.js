@@ -955,6 +955,18 @@ async function lookupByBarcode(code) {
     return active.length > 0 ? active[0] : null;
 }
 
+async function promptProductRegistration(code) {
+    const addNew = await showConfirm(
+        'JANコード「' + code + '」の商品が見つかりません。\n新規登録しますか？'
+    );
+    if (addNew) {
+        switchTab('products');
+        openProductForm();
+        const janField = document.getElementById('product-jan-code');
+        if (janField) janField.value = code;
+    }
+}
+
 // =============================================================================
 // 11. Transaction Management
 // =============================================================================
@@ -2845,7 +2857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     showToast(product.name + ' を選択しました', 'success');
                 } else {
-                    showToast('JANコード「' + code + '」の商品が見つかりません', 'error');
+                    await promptProductRegistration(code);
                 }
             });
         });
@@ -2866,7 +2878,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     showToast(product.name + ' を選択しました', 'success');
                 } else {
-                    showToast('JANコード「' + code + '」の商品が見つかりません', 'error');
+                    await promptProductRegistration(code);
                 }
             });
         });
@@ -2891,14 +2903,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (product) {
                         showProductDetail(product.id);
                     } else {
-                        const addNew = await showConfirm(
-                            'JANコード「' + code + '」の商品が見つかりません。\n新規登録しますか？'
-                        );
-                        if (addNew) {
-                            openProductForm();
-                            const janField = document.getElementById('product-jan-code');
-                            if (janField) janField.value = code;
-                        }
+                        await promptProductRegistration(code);
                     }
                 });
             });
@@ -2982,7 +2987,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                         showToast(product.name + ' を選択しました', 'success');
                     } else {
-                        showToast('JANコード「' + code + '」の商品が見つかりません', 'error');
+                        await promptProductRegistration(code);
                     }
                 });
             });
