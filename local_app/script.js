@@ -756,7 +756,12 @@ async function openScanner(callback) {
     }
 
     if (!html5QrcodeScanner) {
-        html5QrcodeScanner = new Html5Qrcode('scan-reader');
+        html5QrcodeScanner = new Html5Qrcode('scan-reader', {
+            formatsToSupport: [
+                Html5QrcodeSupportedFormats.EAN_13,
+                Html5QrcodeSupportedFormats.EAN_8
+            ]
+        });
     }
 
     // 前回のスキャンが残っている場合は停止してから開始
@@ -770,7 +775,8 @@ async function openScanner(callback) {
         { facingMode: 'environment' },
         {
             fps: 10,
-            qrbox: { width: 250, height: 150 },
+            qrbox: { width: 400, height: 150 },
+            disableFlip: true,
         },
         onScanSuccess,
         (errorMessage) => {
