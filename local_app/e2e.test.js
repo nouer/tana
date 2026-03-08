@@ -1743,10 +1743,10 @@ describeE2E('Tana E2E Tests', () => {
             expect(toastText !== null || overlayStillOpen).toBe(true);
 
             // フォームを閉じる
-            const closeBtn = await page.$('#product-form-overlay .overlay-close-btn');
-            if (closeBtn) await closeBtn.click();
-            const cancelBtn = await page.$('#product-form-overlay .cancel-btn');
-            if (cancelBtn) await cancelBtn.click();
+            await page.evaluate(() => {
+                const overlay = document.getElementById('product-form-overlay');
+                if (overlay) overlay.hidden = true;
+            });
             await sleep(300);
         });
 
@@ -2107,6 +2107,419 @@ describeE2E('Tana E2E Tests', () => {
             expect(result).not.toBeNull();
             expect(result.status).toBe('completed');
             expect(result.allFilled).toBe(true);
+        });
+    });
+
+    // =========================================================================
+    // 12. バーコードスキャン
+    // =========================================================================
+    describe('12. バーコードスキャン', () => {
+        test('E2E-SCAN-001: Html5Qrcodeライブラリが読み込まれている', async () => {
+            const loaded = await page.evaluate(() => typeof Html5Qrcode !== 'undefined');
+            expect(loaded).toBe(true);
+        });
+
+        test('E2E-SCAN-002: 商品タブのスキャンFABが表示されクリックでオーバーレイが開く', async () => {
+            // 商品タブに切り替え
+            await page.evaluate(() => switchTab('products'));
+            await page.waitForSelector('#product-scan-fab', { visible: true });
+
+            const fab = await page.$('#product-scan-fab');
+            expect(fab).not.toBeNull();
+
+            await fab.click();
+            await page.waitForSelector('#scan-overlay:not([hidden])', { timeout: 3000 });
+
+            const overlayVisible = await page.evaluate(() => {
+                const overlay = document.getElementById('scan-overlay');
+                return overlay && !overlay.hidden;
+            });
+            expect(overlayVisible).toBe(true);
+
+            // 閉じる
+            await page.evaluate(() => { try { closeScanner(); } catch(e) {} });
+        });
+
+        test('E2E-SCAN-003: 入出庫タブのスキャンFABが表示されクリックでオーバーレイが開く', async () => {
+            await page.evaluate(() => switchTab('transactions'));
+            await page.waitForSelector('#transaction-scan-fab', { visible: true });
+
+            const fab = await page.$('#transaction-scan-fab');
+            expect(fab).not.toBeNull();
+
+            await fab.click();
+            await page.waitForSelector('#scan-overlay:not([hidden])', { timeout: 3000 });
+
+            const overlayVisible = await page.evaluate(() => {
+                const overlay = document.getElementById('scan-overlay');
+                return overlay && !overlay.hidden;
+            });
+            expect(overlayVisible).toBe(true);
+
+            await page.evaluate(() => { try { closeScanner(); } catch(e) {} });
+        });
+
+        test('E2E-SCAN-004: 入庫フォームのスキャンボタンでオーバーレイが開く', async () => {
+            await page.evaluate(() => switchTab('transactions'));
+            await page.evaluate(() => switchSubTab('receive'));
+
+            const scanBtn = await page.$('#receive-scan-btn');
+            expect(scanBtn).not.toBeNull();
+
+            // evaluate経由でクリック（FABに遮られる可能性があるため）
+            await page.evaluate(() => document.getElementById('receive-scan-btn').click());
+            await page.waitForSelector('#scan-overlay:not([hidden])', { timeout: 3000 });
+
+            const overlayVisible = await page.evaluate(() => {
+                const overlay = document.getElementById('scan-overlay');
+                return overlay && !overlay.hidden;
+            });
+            expect(overlayVisible).toBe(true);
+
+            await page.evaluate(() => { try { closeScanner(); } catch(e) {} });
+        });
+
+        test('E2E-SCAN-005: 使用・販売フォームのスキャンボタンが存在する', async () => {
+            await page.evaluate(() => switchTab('transactions'));
+
+            await page.evaluate(() => switchSubTab('use'));
+            const useBtn = await page.$('#use-scan-btn');
+            expect(useBtn).not.toBeNull();
+
+            await page.evaluate(() => switchSubTab('sell'));
+            const sellBtn = await page.$('#sell-scan-btn');
+            expect(sellBtn).not.toBeNull();
+        });
+
+        test('E2E-SCAN-006: ダッシュボードのクイックスキャンボタンでオーバーレイが開く', async () => {
+            await page.evaluate(() => switchTab('dashboard'));
+            await page.waitForSelector('#quick-scan-receive', { visible: true });
+
+            const btn = await page.$('#quick-scan-receive');
+            expect(btn).not.toBeNull();
+
+            await btn.click();
+            await page.waitForSelector('#scan-overlay:not([hidden])', { timeout: 3000 });
+
+            const overlayVisible = await page.evaluate(() => {
+                const overlay = document.getElementById('scan-overlay');
+                return overlay && !overlay.hidden;
+            });
+            expect(overlayVisible).toBe(true);
+
+            await page.evaluate(() => { try { closeScanner(); } catch(e) {} });
+        });
+
+        test('E2E-SCAN-007: スキャンオーバーレイの閉じるボタンが機能する', async () => {
+            await page.evaluate(() => switchTab('products'));
+            await page.waitForSelector('#product-scan-fab', { visible: true });
+
+            const fab = await page.$('#product-scan-fab');
+            await fab.click();
+            await page.waitForSelector('#scan-overlay:not([hidden])', { timeout: 3000 });
+
+            const closeBtn = await page.$('#scan-close-btn');
+            expect(closeBtn).not.toBeNull();
+            await closeBtn.click();
+
+            await page.waitForFunction(() => {
+                const overlay = document.getElementById('scan-overlay');
+                return overlay && overlay.hidden;
+            }, { timeout: 3000 });
+
+            const hidden = await page.evaluate(() => {
+                return document.getElementById('scan-overlay').hidden;
+            });
+            expect(hidden).toBe(true);
+        });
+    });
+
+    // =========================================================================
+    // 13. 構造的整合性ガード
+    // =========================================================================
+    describe('13. 構造的整合性ガード', () => {
+
+        // E2E-SIG-002 must be first: requires evaluateOnNewDocument + page reload
+        test('E2E-SIG-002: 全getElementById呼び出しのIDがDOMに存在する', async () => {
+            // Monkey-patch getElementById and addEventListener to track behavior
+            await page.evaluateOnNewDocument(() => {
+                if (window.__sig_patched) return;
+                window.__sig_patched = true;
+
+                // Track getElementById null returns
+                window.__nullIds = new Set();
+                const origGetById = Document.prototype.getElementById;
+                Document.prototype.getElementById = function(id) {
+                    const el = origGetById.call(this, id);
+                    if (el === null && typeof id === 'string' && id.length > 0) {
+                        window.__nullIds.add(id);
+                    }
+                    return el;
+                };
+
+                // Track click listener registrations on buttons
+                window.__clickListenerIds = new Set();
+                const origAddEventListener = EventTarget.prototype.addEventListener;
+                EventTarget.prototype.addEventListener = function(type, fn, opts) {
+                    if (type === 'click' && this instanceof HTMLButtonElement && this.id) {
+                        window.__clickListenerIds.add(this.id);
+                    }
+                    return origAddEventListener.call(this, type, fn, opts);
+                };
+            });
+
+            // Reload to activate the patch
+            await reloadPage();
+
+            // Navigate all tabs to trigger getElementById calls across the app
+            const tabs = ['dashboard', 'products', 'transactions', 'inventory', 'reports', 'settings'];
+            for (const tab of tabs) {
+                await switchToTab(tab);
+            }
+            // Subtabs: transactions
+            await switchToTab('transactions');
+            for (const sub of ['receive', 'use', 'sell', 'history']) {
+                await page.evaluate(s => switchSubTab('transactions', s), sub);
+                await sleep(300);
+            }
+            // Subtabs: reports
+            await switchToTab('reports');
+            for (const sub of ['report-stock', 'report-history', 'report-expiry', 'report-variance']) {
+                await page.evaluate(s => switchSubTab('reports', s), sub);
+                await sleep(300);
+            }
+
+            const nullIds = await page.evaluate(() => [...window.__nullIds]);
+
+            // Dynamic IDs that depend on data or runtime state are expected to return null
+            const dynamicPatterns = [
+                /^product-row-/,
+                /^tx-row-/,
+                /^count-item-/,
+                /^detail-/,
+            ];
+            // Intentional conditional checks (element may or may not exist depending on context)
+            const allowList = new Set([
+                'scanner-container',  // Created dynamically by Html5Qrcode
+            ]);
+
+            const unexpected = nullIds.filter(id =>
+                !dynamicPatterns.some(p => p.test(id)) && !allowList.has(id)
+            );
+
+            if (unexpected.length > 0) {
+                console.error('getElementById returned null for:', unexpected);
+            }
+            expect(unexpected).toEqual([]);
+        });
+
+        test('E2E-SIG-001: 全ボタンにイベントリスナーが存在する', async () => {
+            // Uses click listener data collected by monkey-patch in SIG-002
+            const noListener = await page.evaluate(() => {
+                const excluded = new Set();
+                // numpad-btn: event delegation on parent
+                document.querySelectorAll('.numpad-btn').forEach(b => { if (b.id) excluded.add(b.id); });
+                // sub-tab-btn: event delegation on parent
+                document.querySelectorAll('.sub-tab-btn').forEach(b => { if (b.id) excluded.add(b.id); });
+                // main-tab-nav buttons: event delegation on parent
+                document.querySelectorAll('#main-tab-nav button').forEach(b => { if (b.id) excluded.add(b.id); });
+
+                // Buttons that use .onclick instead of addEventListener (dynamically assigned)
+                const onclickAssigned = new Set([
+                    'product-detail-edit-btn',   // onclick set in showProductDetail()
+                    'product-detail-delete-btn', // onclick set in showProductDetail()
+                    'confirm-ok-btn',            // onclick set in showConfirm()
+                    'confirm-cancel-btn',        // onclick set in showConfirm()
+                ]);
+
+                const allButtonIds = [...document.querySelectorAll('button[type="button"][id]')]
+                    .map(b => b.id)
+                    .filter(id => !excluded.has(id) && !onclickAssigned.has(id));
+
+                const listened = window.__clickListenerIds || new Set();
+                return allButtonIds.filter(id => !listened.has(id));
+            });
+
+            if (noListener.length > 0) {
+                console.error('Buttons without click listeners:', noListener);
+            }
+            expect(noListener).toEqual([]);
+        });
+
+        test('E2E-SIG-003: 全参照リソースが正常にロードされる', async () => {
+            // Check all script src and link href return 200
+            const failedResources = await page.evaluate(async () => {
+                const failed = [];
+                const urls = [
+                    ...[...document.querySelectorAll('script[src]')].map(s => s.src),
+                    ...[...document.querySelectorAll('link[rel="stylesheet"][href]')].map(l => l.href),
+                ];
+                for (const url of urls) {
+                    try {
+                        const r = await fetch(url, { method: 'HEAD' });
+                        if (!r.ok) failed.push({ url, status: r.status });
+                    } catch (e) {
+                        failed.push({ url, error: e.message });
+                    }
+                }
+                return failed;
+            });
+            expect(failedResources).toEqual([]);
+
+            // Check expected global variables from loaded scripts
+            const globals = await page.evaluate(() => ({
+                Html5Qrcode: typeof Html5Qrcode !== 'undefined',
+                TanaCalc: typeof TanaCalc !== 'undefined',
+                APP_INFO: typeof APP_INFO !== 'undefined',
+                switchTab: typeof switchTab === 'function',
+            }));
+            for (const [name, exists] of Object.entries(globals)) {
+                expect({ name, exists }).toEqual({ name, exists: true });
+            }
+        });
+
+        test('E2E-SIG-004: 全タブに内部値が表示されない（自動探索版）', async () => {
+            // Load sample data so translated labels can be verified
+            await loadSampleDataViaJS();
+            await reloadPage();
+
+            const forbidden = ['undefined', 'NaN', 'consumable', 'retail', 'in_progress'];
+            const allViolations = [];
+
+            const tabs = ['dashboard', 'products', 'transactions', 'inventory', 'reports', 'settings'];
+            for (const tab of tabs) {
+                await switchToTab(tab);
+
+                const violations = await page.evaluate((tabName, forbidden) => {
+                    const results = [];
+                    const container = document.getElementById('tab-' + tabName);
+                    if (!container) return results;
+
+                    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+                    let node;
+                    while (node = walker.nextNode()) {
+                        const text = node.textContent.trim();
+                        if (!text) continue;
+                        const parent = node.parentElement;
+                        if (!parent) continue;
+                        // Exclude option/select value text
+                        if (parent.tagName === 'OPTION' || parent.tagName === 'SELECT') continue;
+                        // Exclude hidden elements
+                        if (parent.closest('[hidden]')) continue;
+                        // Exclude script/style tags
+                        if (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE') continue;
+                        for (const val of forbidden) {
+                            if (text.includes(val)) {
+                                results.push({ tab: tabName, text: text.substring(0, 80), value: val });
+                            }
+                        }
+                    }
+                    return results;
+                }, tab, forbidden);
+
+                allViolations.push(...violations);
+            }
+
+            if (allViolations.length > 0) {
+                console.error('Internal value leaks:', JSON.stringify(allViolations, null, 2));
+            }
+            expect(allViolations).toEqual([]);
+        });
+
+        test('E2E-SIG-005: レポートテーブルの全列にデータが存在する', async () => {
+            // Sample data loaded in SIG-004; navigate to reports
+            await switchToTab('reports');
+
+            const reportTables = [
+                { subtab: 'report-stock', tableId: 'stock-report-table' },
+                { subtab: 'report-history', tableId: 'history-report-table' },
+                { subtab: 'report-expiry', tableId: 'expiry-report-table' },
+                { subtab: 'report-variance', tableId: 'variance-report-table' },
+            ];
+
+            const emptyColumns = [];
+            for (const { subtab, tableId } of reportTables) {
+                await page.evaluate(s => switchSubTab(s), subtab);
+                await sleep(500);
+
+                const result = await page.evaluate((tid) => {
+                    const container = document.getElementById(tid);
+                    if (!container) return null;
+                    const table = container.querySelector('table');
+                    if (!table) return null;
+
+                    const rows = [...table.querySelectorAll('tbody tr')];
+                    if (rows.length === 0) return null; // No data — skip
+
+                    const headers = [...table.querySelectorAll('thead th')];
+                    const emptyCols = [];
+                    for (let col = 0; col < headers.length; col++) {
+                        const allEmpty = rows.every(row => {
+                            const cells = row.querySelectorAll('td');
+                            return !cells[col] || cells[col].textContent.trim() === '';
+                        });
+                        if (allEmpty) {
+                            emptyCols.push(headers[col]?.textContent || `col-${col}`);
+                        }
+                    }
+                    return emptyCols;
+                }, tableId);
+
+                if (result && result.length > 0) {
+                    emptyColumns.push({ subtab, columns: result });
+                }
+            }
+
+            if (emptyColumns.length > 0) {
+                console.error('Report tables with empty columns:', JSON.stringify(emptyColumns, null, 2));
+            }
+            expect(emptyColumns).toEqual([]);
+        });
+
+        test('E2E-SIG-006: 全オーバーレイの閉じるボタンが機能する', async () => {
+            // Find all overlays that have a .overlay-close-btn child
+            // Exclude scan-overlay (tested separately in E2E-SCAN-007, requires scanner state)
+            const overlayIds = await page.evaluate(() => {
+                return [...document.querySelectorAll('.overlay[id]')]
+                    .filter(o => o.querySelector('.overlay-close-btn'))
+                    .map(o => o.id)
+                    .filter(id => id !== 'scan-overlay');
+            });
+
+            const failures = [];
+            for (const id of overlayIds) {
+                // Show the overlay programmatically
+                await page.evaluate(id => {
+                    const overlay = document.getElementById(id);
+                    if (overlay) overlay.hidden = false;
+                }, id);
+                await sleep(200);
+
+                // Click the × close button
+                const closed = await page.evaluate(id => {
+                    const overlay = document.getElementById(id);
+                    if (!overlay) return { ok: false, reason: 'overlay not found' };
+                    const btn = overlay.querySelector('.overlay-close-btn');
+                    if (!btn) return { ok: false, reason: 'close button not found' };
+                    btn.click();
+                    return { ok: overlay.hidden, reason: overlay.hidden ? '' : 'not hidden after click' };
+                }, id);
+                await sleep(300);
+
+                if (!closed.ok) {
+                    failures.push({ id, reason: closed.reason });
+                    // Clean up: force hide so it doesn't interfere with next test
+                    await page.evaluate(id => {
+                        const o = document.getElementById(id);
+                        if (o) o.hidden = true;
+                    }, id);
+                }
+            }
+
+            if (failures.length > 0) {
+                console.error('Overlay close failures:', JSON.stringify(failures, null, 2));
+            }
+            expect(failures).toEqual([]);
         });
     });
 });

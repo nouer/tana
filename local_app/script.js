@@ -740,7 +740,7 @@ let html5QrcodeScanner = null;
 let lastScanCode = '';
 let lastScanTime = 0;
 
-function openScanner(callback) {
+async function openScanner(callback) {
     const overlay = document.getElementById('scan-overlay');
     if (!overlay) return;
 
@@ -757,6 +757,13 @@ function openScanner(callback) {
 
     if (!html5QrcodeScanner) {
         html5QrcodeScanner = new Html5Qrcode('scan-reader');
+    }
+
+    // 前回のスキャンが残っている場合は停止してから開始
+    try {
+        await html5QrcodeScanner.stop();
+    } catch (e) {
+        // 未起動の場合のエラーは無視
     }
 
     html5QrcodeScanner.start(
@@ -780,7 +787,11 @@ function closeScanner() {
     if (overlay) overlay.hidden = true;
 
     if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().catch(() => {});
+        try {
+            html5QrcodeScanner.stop().catch(() => {});
+        } catch (e) {
+            // 未起動の場合のエラーは無視
+        }
     }
     scanCallback = null;
 }
@@ -990,8 +1001,10 @@ async function saveTransaction(type) {
         }
 
         // Hide lot/expiry fields
-        const lotFields = document.getElementById(prefix + '-lot-fields');
-        if (lotFields) lotFields.hidden = true;
+        const lotGroup = document.getElementById(prefix + '-lot-number-group');
+        if (lotGroup) lotGroup.hidden = true;
+        const expiryGroup = document.getElementById(prefix + '-expiry-date-group');
+        if (expiryGroup) expiryGroup.hidden = true;
 
     } catch (err) {
         console.error('Failed to save transaction:', err);
@@ -2491,11 +2504,6 @@ function applyUpdate() {
     window.location.reload();
 }
 
-function dismissUpdateBanner() {
-    const banner = document.getElementById('update-banner');
-    if (banner) banner.hidden = true;
-}
-
 async function checkForUpdate() {
     if (!('serviceWorker' in navigator)) {
         showToast('このブラウザはService Workerに対応していません', 'warning');
@@ -2677,6 +2685,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         startCountBtn.addEventListener('click', startNewCount);
     }
 
+    const completeCountBtn = document.getElementById('complete-count-btn');
+    if (completeCountBtn) {
+        completeCountBtn.addEventListener('click', completeCount);
+    }
+
     // Settings listeners
     const saveBusinessBtn = document.getElementById('save-business-info-btn');
     if (saveBusinessBtn) {
@@ -2765,27 +2778,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Scan FAB listeners
-    const scanFab = document.getElementById('scan-fab');
-    if (scanFab) {
-        scanFab.addEventListener('click', () => {
-            openScanner(async (code) => {
-                // Default scan behavior: look up product
-                const product = await lookupByBarcode(code);
-                if (product) {
-                    showProductDetail(product.id);
-                } else {
-                    const addNew = await showConfirm(
-                        'JANコード「' + code + '」の商品が見つかりません。\n新規登録しますか？'
-                    );
-                    if (addNew) {
-                        openProductForm();
-                        const janField = document.getElementById('product-jan-code');
-                        if (janField) janField.value = code;
+    ['product-scan-fab', 'transaction-scan-fab'].forEach(fabId => {
+        const scanFab = document.getElementById(fabId);
+        if (scanFab) {
+            scanFab.addEventListener('click', () => {
+                openScanner(async (code) => {
+                    // Default scan behavior: look up product
+                    const product = await lookupByBarcode(code);
+                    if (product) {
+                        showProductDetail(product.id);
+                    } else {
+                        const addNew = await showConfirm(
+                            'JANコード「' + code + '」の商品が見つかりません。\n新規登録しますか？'
+                        );
+                        if (addNew) {
+                            openProductForm();
+                            const janField = document.getElementById('product-jan-code');
+                            if (janField) janField.value = code;
+                        }
                     }
-                }
+                });
             });
-        });
-    }
+        }
+    });
 
     // Scanner close listener
     const scannerCloseBtn = document.getElementById('scan-close-btn');
@@ -2814,11 +2829,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const updateBtn = document.getElementById('update-btn');
     if (updateBtn) {
         updateBtn.addEventListener('click', applyUpdate);
-    }
-
-    const updateDismissBtn = document.getElementById('update-dismiss-btn');
-    if (updateDismissBtn) {
-        updateDismissBtn.addEventListener('click', dismissUpdateBanner);
     }
 
     const checkUpdateBtn = document.getElementById('check-update-btn');
@@ -2874,6 +2884,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             });
         }
+    });
+
+    // Overlay × close button handler (generic for all overlays)
+    document.querySelectorAll('.overlay-close-btn').forEach(btn => {
+        // Skip buttons that already have specific click handlers
+        if (btn.id === 'scan-close-btn') return;
+        btn.addEventListener('click', () => {
+            const overlay = btn.closest('.overlay');
+            if (overlay) overlay.hidden = true;
+        });
     });
 
     // Overlay close on background click
