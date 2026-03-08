@@ -782,9 +782,86 @@ async function openScanner(callback) {
         (errorMessage) => {
             // Scan error - ignore, keep scanning
         }
-    ).catch(err => {
+    ).then(() => {
+        enableAutofocus();
+        setupTapToFocus();
+    }).catch(err => {
         console.error('Scanner start failed:', err);
         showToast('カメラの起動に失敗しました', 'error');
+    });
+}
+
+function getScannerVideoTrack() {
+    const video = document.querySelector('#scan-reader video');
+    if (video && video.srcObject) {
+        return video.srcObject.getVideoTracks()[0] || null;
+    }
+    return null;
+}
+
+function enableAutofocus() {
+    const track = getScannerVideoTrack();
+    if (!track) return;
+    try {
+        const capabilities = track.getCapabilities();
+        if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+            track.applyConstraints({
+                advanced: [{ focusMode: 'continuous' }]
+            });
+        }
+    } catch (e) {
+        // フォーカス制御非対応のカメラは無視
+    }
+}
+
+function setupTapToFocus() {
+    const scannerEl = document.getElementById('scan-reader');
+    if (!scannerEl || scannerEl._tapFocusAttached) return;
+    scannerEl._tapFocusAttached = true;
+
+    scannerEl.addEventListener('click', () => {
+        const track = getScannerVideoTrack();
+        if (!track) return;
+        try {
+            const capabilities = track.getCapabilities();
+            if (!capabilities.focusMode) return;
+
+            // single-shot でフォーカスを合わせ直し、その後 continuous に戻す
+            if (capabilities.focusMode.includes('single-shot')) {
+                track.applyConstraints({
+                    advanced: [{ focusMode: 'single-shot' }]
+                }).then(() => {
+                    setTimeout(() => {
+                        if (capabilities.focusMode.includes('continuous')) {
+                            track.applyConstraints({
+                                advanced: [{ focusMode: 'continuous' }]
+                            }).catch(() => {});
+                        }
+                    }, 1500);
+                }).catch(() => {});
+            } else if (capabilities.focusMode.includes('manual') && capabilities.focusMode.includes('continuous')) {
+                // single-shot 非対応: manual→continuous で再フォーカス
+                track.applyConstraints({
+                    advanced: [{ focusMode: 'manual' }]
+                }).then(() => {
+                    setTimeout(() => {
+                        track.applyConstraints({
+                            advanced: [{ focusMode: 'continuous' }]
+                        }).catch(() => {});
+                    }, 500);
+                }).catch(() => {});
+            }
+
+            const statusEl = document.getElementById('scan-status');
+            if (statusEl) {
+                statusEl.textContent = 'フォーカスを調整中...';
+                setTimeout(() => {
+                    statusEl.textContent = 'バーコードをスキャン枠に合わせてください';
+                }, 1500);
+            }
+        } catch (e) {
+            // フォーカス制御非対応のカメラは無視
+        }
     });
 }
 
