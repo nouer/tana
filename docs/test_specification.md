@@ -249,6 +249,7 @@
 | E2E-SET-003 | 通知トグルの保存 | チェックボックス変更時に即座にIndexedDBに保存される |
 | E2E-SET-004 | アプリバージョンとビルド日時が表示される | #app-version, #app-build-timeが空でない |
 | E2E-SET-005 | アップデート確認ボタンがクリック可能でトーストが表示される | ボタンクリックでトーストが表示される（SW未対応環境では警告、未登録環境では「最新バージョンです」） |
+| E2E-SET-005b | 更新バナーのどこをクリックしてもapplyUpdateが発火する | バナーテキスト部分のクリックがバナーdivのclickリスナーに到達する |
 | E2E-SET-006 | お知らせボタンがクリック可能 | #btn-open-notificationクリックでwindow.openが呼ばれる |
 | E2E-SET-RT-001 | 設定フォーム全フィールドの保存→リロード→値保持 | 在庫設定（lowStockThreshold, expiryWarningDays, scanSoundEnabled, defaultTransactionType）をDBに保存後、ページリロードして設定画面の各UIフィールドに正しく反映されることを検証。取引タブのデフォルトサブタブも検証。 |
 

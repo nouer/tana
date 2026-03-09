@@ -69,3 +69,9 @@
 - 原因: HTMLにinput/select要素を追加した際に、save関数での値読み取り、load/edit関数での値書き込み、イベントリスナーの登録のいずれかが欠落
 - 発見箇所: 商品フォームのexpiryAlertDays（save/load/changeイベント全欠落）、設定画面のscan-sound-enabled（save/load未実装、playScanSound未参照）、設定画面のdefault-transaction-type（save/load未実装、loadTransactionTab未参照）
 - 予防: E2E-SIG-007で全フォームフィールドとsave/loadロジックの対応マッピングを自動検査。E2E-PRD-RT-001/E2E-SET-RT-001でラウンドトリップ（保存→再表示→値一致）を検証
+
+### P12: cursor: pointer とクリックハンドラの範囲不一致
+- 症状: コンテナ全体（1260x68px）に `cursor: pointer` が設定されており全域がクリック可能に見えるが、実際のクリックイベントは内部の小さなボタン要素（76x27px、面積比2.4%）にしか反応しない。PC用户はテキスト部分をクリックして反応がない
+- 原因: CSSの `cursor: pointer` は `#update-banner` div全体に適用されていたが、クリックハンドラは子要素の `#update-btn` ボタンにのみ登録されていた
+- 発見箇所: アップデートバナーの「更新する」ボタン — `script.js` の `initializeEventListeners()`
+- 予防: `cursor: pointer` をコンテナに適用する場合、クリックハンドラもコンテナに設置する。子要素のみにハンドラを付ける場合は、`cursor: pointer` も子要素のみに限定する

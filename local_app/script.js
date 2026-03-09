@@ -3031,10 +3031,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Confirm dialog is handled inline by showConfirm()
 
-    // Update banner listener
-    const updateBtn = document.getElementById('update-btn');
-    if (updateBtn) {
-        updateBtn.addEventListener('click', applyUpdate);
+    // Update banner listener (バナー全体をクリック可能にする)
+    const updateBanner = document.getElementById('update-banner');
+    if (updateBanner) {
+        updateBanner.addEventListener('click', applyUpdate);
     }
 
     const checkUpdateBtn = document.getElementById('check-update-btn');

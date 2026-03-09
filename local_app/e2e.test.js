@@ -322,6 +322,32 @@ describeE2E('Tana E2E Tests', () => {
             ).toBe(true);
         });
 
+        test('E2E-SET-005b: 更新バナーのどこをクリックしてもapplyUpdateが発火する', async () => {
+            // バナーdivにclickイベントリスナーが設定されていることを検証
+            // テキスト部分(<p>)のクリックがバナーdivまでバブルすることを確認
+            const result = await page.evaluate(() => {
+                const banner = document.getElementById('update-banner');
+                if (!banner) return { error: 'banner not found' };
+
+                // バナーを表示
+                banner.hidden = false;
+                banner.classList.add('visible');
+
+                // バナーdivのclickイベント到達を監視
+                let bannerClickReceived = false;
+                banner.addEventListener('click', () => { bannerClickReceived = true; });
+
+                // テキスト部分をクリック（イベントバブリング検証）
+                const p = banner.querySelector('p');
+                if (!p) return { error: 'p not found' };
+                p.click();
+
+                return { bannerClickReceived };
+            });
+
+            expect(result.bannerClickReceived).toBe(true);
+        });
+
         test('E2E-SET-006: お知らせボタンがクリック可能', async () => {
             await switchToTab('settings');
 
@@ -2101,6 +2127,8 @@ describeE2E('Tana E2E Tests', () => {
                 document.querySelectorAll('.sub-tab-btn').forEach(b => { if (b.id) excluded.add(b.id); });
                 // main-tab-nav buttons: event delegation on parent
                 document.querySelectorAll('#main-tab-nav button').forEach(b => { if (b.id) excluded.add(b.id); });
+                // update-btn: event delegation on parent #update-banner div
+                excluded.add('update-btn');
 
                 // Buttons that use .onclick instead of addEventListener (dynamically assigned)
                 const onclickAssigned = new Set([

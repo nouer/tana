@@ -79,7 +79,8 @@
 | 表示条件 | Service Workerの新バージョン検出時 |
 
 - メッセージ: 「新しいバージョンが利用可能です。」
-- 「更新する」ボタン: 白背景、クリック時に `applyUpdate()` 実行（SW skip waiting + ページリロード）
+- 「更新する」ボタン: 白背景
+- クリックハンドラ: `#update-banner` div 全体に `click` イベントリスナーを設定。バナーのどこをクリックしても `applyUpdate()` が実行される（SW skip waiting + ページリロード）。ボタンのクリックはイベントバブリングにより親の `#update-banner` div で処理される
 - 初期状態: `hidden` 属性で非表示
 
 ### 1.5 トースト通知
