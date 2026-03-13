@@ -48,7 +48,7 @@ tana/
 │   └── md-to-html.py          # Markdown→HTMLコンバーター
 ├── tools/                     # 開発補助ツール
 │   ├── generate_sample_data.js  # サンプルデータ生成
-│   └── take_screenshots.js    # スクリーンショット取得
+│   └── take_screenshots.js    # スクリーンショット取得（非推奨：Playwright MCP使用）
 ├── tasks/
 │   ├── lessons.md             # バグパターン集
 │   └── walkthrough-results/   # 画面ウォークスルー結果
