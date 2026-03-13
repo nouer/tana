@@ -18,8 +18,12 @@ tana/
 │   ├── manual.html            # ユーザーマニュアル（ビルド時生成）
 │   ├── notify.html            # 通知ページ
 │   ├── promotion.html         # プロモーションページ
+│   ├── usecases_showcase.html # ユースケースショーケース（ビルド時生成）
 │   ├── tana.calc.test.js      # ユニットテスト（Jest）
 │   ├── e2e.test.js            # E2Eテスト（Puppeteer）
+│   ├── e2e.workflow.test.js   # ワークフローE2Eテスト（Puppeteer）
+│   ├── e2e.helpers.js         # E2Eテストヘルパー
+│   ├── docs-images/           # ドキュメント用画像
 │   ├── icons/                 # PWAアイコン（SVG→PNG生成）
 │   └── lib/
 │       └── html5-qrcode.min.js  # バーコードスキャナー（唯一の外部ライブラリ）
@@ -30,7 +34,11 @@ tana/
 │   ├── algorithm_logic.md     # アルゴリズム・計算ロジック
 │   ├── test_specification.md  # テスト仕様書
 │   ├── manual.md              # ユーザーマニュアル（Markdown原本）
-│   └── promotion.md           # プロモーション用テキスト
+│   ├── promotion.md           # プロモーション用テキスト
+│   ├── usecases.md            # ユースケース定義
+│   ├── usecases_showcase.md   # ユースケースショーケース（Markdown原本）
+│   ├── pwa-update-fix.md      # PWAアップデート修正ドキュメント
+│   └── images/                # ドキュメント用画像
 ├── scripts/                   # ビルド・ユーティリティスクリプト
 │   ├── build.sh               # Docker ビルド＆起動
 │   ├── rebuild.sh             # 強制リビルド
@@ -42,7 +50,8 @@ tana/
 │   ├── generate_sample_data.js  # サンプルデータ生成
 │   └── take_screenshots.js    # スクリーンショット取得
 ├── tasks/
-│   └── lessons.md             # バグパターン集
+│   ├── lessons.md             # バグパターン集
+│   └── walkthrough-results/   # 画面ウォークスルー結果
 ├── nginx/
 │   └── default.conf           # Nginx設定
 ├── Dockerfile                 # アプリ用Dockerfile（Nginx）
@@ -86,16 +95,6 @@ docker compose run --rm tana-test
   - これらはビルド時に自動生成されるが、PWAのアップデート検出に必要
   - `sw.js` の `CACHE_NAME` が変わることでブラウザが新バージョンを検知する
   - `version.js` の `buildTime` がアプリ内のバージョン表示に使われる
-
-## ワークフロー設計
-
-### Plan モード
-- 大きな機能変更はまず Plan モードで設計してからコード変更に移る
-- 途中でうまくいかなくなったら、無理に進めず立ち止まって再計画する
-
-### サブエージェント
-- 独立したファイル調査・リサーチは Agent ツールに委任する
-- メインのコンテキストウィンドウをクリーンに保つ
 
 ## バグパターン管理
 
@@ -144,8 +143,3 @@ docker compose run --rm tana-test
 3. スクリーンショットを取得して視覚的に問題がないことを確認する
 4. 不具合が見つかった場合、修正→E2Eテスト追加→再検証のループを回す
 
-## コア原則
-
-- **シンプル第一**：すべての変更をできる限りシンプルにする。影響するコードを最小限にする。
-- **手を抜かない**：根本原因を見つける。一時的な修正は避ける。
-- **影響を最小化する**：変更は必要な箇所のみにとどめる。
