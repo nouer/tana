@@ -84,19 +84,19 @@ docker compose run --rm tana-test
 ## Docker 構成
 
 - **3サービス構成**:
-  - `tana-app` — E2Eテスト用（固定IP `172.33.0.10`、ホスト非公開）
+  - `tana-app` — E2Eテスト用（ホスト非公開）。IPは `build.sh`/`rebuild.sh` がハッシュから自動生成（docker-compose.yml のフォールバック値は `172.33.0.10`）
   - `tana-app-public` — ブラウザアクセス用（ホストの `TANA_PORT` にバインド）
   - `tana-test` — Puppeteer E2Eテスト実行環境
 - **Worktree 分離**: `build.sh`/`rebuild.sh` はディレクトリハッシュから `COMPOSE_PROJECT_NAME`・サブネット・固定IPを自動生成し、複数 worktree の同時起動が可能
 - **`build.sh` vs `rebuild.sh`**:
   - `build.sh` — `tana-app` + `tana-app-public` のビルド＆起動。version.js をローカルで生成
-  - `rebuild.sh` — 既存コンテナ停止 → テストコンテナ含む全サービスを強制リビルド。version.js を Docker 内で生成。空きポート自動選択
+  - `rebuild.sh` — 既存コンテナ停止 → テストコンテナ含む全サービスを強制リビルド（テストコンテナはビルドのみ、起動は `tana-app` + `tana-app-public`）。version.js を Docker 内で生成。空きポート自動選択
 
 ## Service Worker キャッシュ戦略
 
 - **Cache-first + network fallback**: fetch 時にキャッシュを優先、ミス時にネットワークへフォールバック
 - **Precache**: インストール時に `PRECACHE_ASSETS` の全アセットをキャッシュ
-- **SKIP_WAITING**: クライアントからの `SKIP_WAITING` メッセージで即時アクティベーション + `clients.claim()`
+- **SKIP_WAITING**: クライアントからの `SKIP_WAITING` メッセージで `skipWaiting()` を実行。`clients.claim()` は activate イベントで実行（別ハンドラ）
 - **SPA offline fallback**: ドキュメントリクエストがキャッシュ・ネットワーク両方で失敗 → キャッシュ済み `/index.html` にフォールバック
 - **更新検知**: `generate_version.sh` が `CACHE_NAME` をバージョン+タイムスタンプで更新 → ブラウザが新 SW を検知
 
