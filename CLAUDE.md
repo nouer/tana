@@ -81,6 +81,25 @@ npm test
 docker compose run --rm tana-test
 ```
 
+## Docker 構成
+
+- **3サービス構成**:
+  - `tana-app` — E2Eテスト用（固定IP `172.33.0.10`、ホスト非公開）
+  - `tana-app-public` — ブラウザアクセス用（ホストの `TANA_PORT` にバインド）
+  - `tana-test` — Puppeteer E2Eテスト実行環境
+- **Worktree 分離**: `build.sh`/`rebuild.sh` はディレクトリハッシュから `COMPOSE_PROJECT_NAME`・サブネット・固定IPを自動生成し、複数 worktree の同時起動が可能
+- **`build.sh` vs `rebuild.sh`**:
+  - `build.sh` — `tana-app` + `tana-app-public` のビルド＆起動。version.js をローカルで生成
+  - `rebuild.sh` — 既存コンテナ停止 → テストコンテナ含む全サービスを強制リビルド。version.js を Docker 内で生成。空きポート自動選択
+
+## Service Worker キャッシュ戦略
+
+- **Cache-first + network fallback**: fetch 時にキャッシュを優先、ミス時にネットワークへフォールバック
+- **Precache**: インストール時に `PRECACHE_ASSETS` の全アセットをキャッシュ
+- **SKIP_WAITING**: クライアントからの `SKIP_WAITING` メッセージで即時アクティベーション + `clients.claim()`
+- **SPA offline fallback**: ドキュメントリクエストがキャッシュ・ネットワーク両方で失敗 → キャッシュ済み `/index.html` にフォールバック
+- **更新検知**: `generate_version.sh` が `CACHE_NAME` をバージョン+タイムスタンプで更新 → ブラウザが新 SW を検知
+
 ## コーディング規約
 
 - `tana.calc.js` には純粋関数のみ（DOM操作・IndexedDB操作禁止）
@@ -106,12 +125,12 @@ docker compose run --rm tana-test
 - バグを修正したら、同じパターンが既に記録されていないか確認し:
   - 新パターンなら追記（症状、原因、発見箇所、予防策の4項目）
   - 既存パターンなら発見箇所を追記
-- 進行中タスクの管理にはClaude Code内蔵のTodoWriteツールを使う（ファイルには書かない）
+- 進行中タスクの管理にはClaude Code内蔵のTodoWriteツールを使う（利用不可時は `tasks/todo.md` で代替）
 
 ## ブラウザ操作・スクリーンショット
 
-- E2Eテストの動作確認、マニュアル用スクリーンショット取得など、ブラウザ操作が必要な場合は **Playwright MCP** を使用する
-- Puppeteer スクリプト（`tools/take_screenshots.js` 等）は使わず、Playwright MCP の `browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_click` 等のツールで直接操作する
+- E2Eテストの動作確認、マニュアル用スクリーンショット取得など、ブラウザ操作が必要な場合は **Playwright MCP** を使用する（利用不可時は `tools/take_screenshots.js` 等の Puppeteer スクリプトで代替可）
+- Playwright MCP 利用時は `browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_click` 等のツールで直接操作する
 - アプリの URL は `http://localhost:${TANA_PORT:-8088}`（`rebuild.sh` 使用時はポートが自動選択される場合がある）
 
 ## 完了前検証ルール
@@ -143,7 +162,7 @@ docker compose run --rm tana-test
 
 ## 画面ウォークスルー検証（新機能・バグ修正後の必須プロセス）
 
-コード変更後、E2Eテスト実行に加えて以下を行う:
+コード変更後、E2Eテスト実行に加えて以下を行う（Playwright MCP 利用不可時は手動確認で代替）:
 1. 変更が影響する画面をPlaywright MCPで開く
 2. 画面上の全インタラクティブ要素を操作して動作を確認する
 3. スクリーンショットを取得して視覚的に問題がないことを確認する
