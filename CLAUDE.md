@@ -67,8 +67,12 @@ tana/
 # Docker ビルド＆起動（ポート 8088）
 bash scripts/build.sh
 
-# 強制リビルド
+# 強制リビルド（8088-8095から空きポートを自動選択）
 bash scripts/rebuild.sh
+
+# ドキュメントビルド（Markdown→HTML変換）
+# build.sh からは呼ばれない手動ステップ。docs/ のMarkdownを更新したら実行すること
+bash scripts/build-docs.sh
 
 # ユニットテスト
 npm test
@@ -108,11 +112,12 @@ docker compose run --rm tana-test
 
 - E2Eテストの動作確認、マニュアル用スクリーンショット取得など、ブラウザ操作が必要な場合は **Playwright MCP** を使用する
 - Puppeteer スクリプト（`tools/take_screenshots.js` 等）は使わず、Playwright MCP の `browser_navigate` / `browser_snapshot` / `browser_take_screenshot` / `browser_click` 等のツールで直接操作する
-- アプリの URL は `http://localhost:8088`
+- アプリの URL は `http://localhost:${TANA_PORT:-8088}`（`rebuild.sh` 使用時はポートが自動選択される場合がある）
 
 ## 完了前検証ルール
 
 - `npm test` でユニットテストが全件パス
+  - **注意**: `npm test` はJestの2プロジェクト（unit + e2e）を実行するが、E2Eは `E2E_APP_IP` 環境変数がない場合サイレントにスキップされる。ローカルで `npm test` が成功してもE2Eは未検証
 - `docker compose run --rm tana-test` でE2Eテストが全件パス
 - 変更したコードに関連するドキュメントが更新済み
 - 動作を証明できるまでタスクを完了とマークしない
@@ -123,6 +128,7 @@ docker compose run --rm tana-test
 - コミット前にドキュメントの更新漏れがないか確認する
 - 対象ドキュメントと更新基準:
   - `docs/requirements_definition.md` — フィールドの追加/削除/必須変更、機能要件の変更
+  - `docs/basic_design.md` — 画面構成、データフロー、全体アーキテクチャの変更
   - `docs/detailed_design.md` — バリデーションルール変更、UI要素の追加/変更、画面構成の変更
   - `docs/test_specification.md` — テストケースの追加/変更/削除
   - `docs/algorithm_logic.md` — 計算ロジック、アルゴリズムの変更
