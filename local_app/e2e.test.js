@@ -2039,6 +2039,72 @@ describeE2E('Tana E2E Tests', () => {
     });
 
     // =========================================================================
+    // iOS PWA スプラッシュ画像
+    // =========================================================================
+    describe('iOS PWA スプラッシュ画像', () => {
+        test('E2E-SPLASH-001: apple-touch-startup-image linkタグが17個存在する', async () => {
+            const count = await page.evaluate(() => {
+                return document.querySelectorAll('link[rel="apple-touch-startup-image"]').length;
+            });
+            expect(count).toBe(17);
+        });
+
+        test('E2E-SPLASH-002: 各media queryにscreen and・orientation: portraitが含まれる', async () => {
+            const results = await page.evaluate(() => {
+                const links = document.querySelectorAll('link[rel="apple-touch-startup-image"]');
+                const failures = [];
+                links.forEach(link => {
+                    const media = link.getAttribute('media') || '';
+                    const href = link.getAttribute('href') || '';
+                    if (!media.startsWith('screen and ')) {
+                        failures.push(`${href}: missing "screen and" prefix`);
+                    }
+                    if (!media.includes('orientation: portrait')) {
+                        failures.push(`${href}: missing "orientation: portrait"`);
+                    }
+                    if (!media.includes('device-width:')) {
+                        failures.push(`${href}: missing "device-width"`);
+                    }
+                    if (!media.includes('device-height:')) {
+                        failures.push(`${href}: missing "device-height"`);
+                    }
+                    if (!media.includes('-webkit-device-pixel-ratio:')) {
+                        failures.push(`${href}: missing "-webkit-device-pixel-ratio"`);
+                    }
+                });
+                return failures;
+            });
+            if (results.length > 0) {
+                console.error('Splash media query failures:', results);
+            }
+            expect(results).toEqual([]);
+        });
+
+        test('E2E-SPLASH-003: 参照先スプラッシュ画像がHTTP 200でアクセス可能', async () => {
+            const hrefs = await page.evaluate(() => {
+                const links = document.querySelectorAll('link[rel="apple-touch-startup-image"]');
+                return Array.from(links).map(l => l.getAttribute('href'));
+            });
+            expect(hrefs.length).toBe(17);
+
+            const failures = [];
+            for (const href of hrefs) {
+                const status = await page.evaluate(async (url) => {
+                    const res = await fetch(url, { method: 'HEAD' });
+                    return res.status;
+                }, href);
+                if (status !== 200) {
+                    failures.push(`${href}: HTTP ${status}`);
+                }
+            }
+            if (failures.length > 0) {
+                console.error('Splash image access failures:', failures);
+            }
+            expect(failures).toEqual([]);
+        });
+    });
+
+    // =========================================================================
     // 13. 構造的整合性ガード
     // =========================================================================
     describe('13. 構造的整合性ガード', () => {

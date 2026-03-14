@@ -42,6 +42,14 @@ if [ ! -f "local_app/icons/icon-512.png" ]; then
   fi
 fi
 
+# スプラッシュ画像生成（17ファイル揃っていない場合に再生成）
+if [ ! -d "local_app/icons/splash" ] || [ "$(find local_app/icons/splash -name 'splash-*.png' | wc -l)" -lt 17 ]; then
+  if [ -f "scripts/generate_splash.py" ]; then
+    echo "Generating splash images..."
+    python3 scripts/generate_splash.py
+  fi
+fi
+
 ./scripts/generate_version.sh
 echo "Building and starting containers..."
 docker compose build tana-app-public

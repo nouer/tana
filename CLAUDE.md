@@ -25,6 +25,7 @@ tana/
 │   ├── e2e.helpers.js         # E2Eテストヘルパー
 │   ├── docs-images/           # ドキュメント用画像
 │   ├── icons/                 # PWAアイコン（SVG→PNG生成）
+│   │   └── splash/            # iOSスプラッシュ画像（generate_splash.py生成）
 │   └── lib/
 │       └── html5-qrcode.min.js  # バーコードスキャナー（唯一の外部ライブラリ）
 ├── docs/                      # ドキュメント
@@ -43,6 +44,7 @@ tana/
 │   ├── build.sh               # Docker ビルド＆起動
 │   ├── rebuild.sh             # 強制リビルド
 │   ├── build-docs.sh          # Markdown→HTML変換（manual, promotion）
+│   ├── generate_splash.py     # iOSスプラッシュ画像生成
 │   ├── generate-icons.sh      # SVG→PNGアイコン生成
 │   ├── generate_version.sh    # version.js 生成
 │   └── md-to-html.py          # Markdown→HTMLコンバーター
